@@ -38,6 +38,7 @@ target_sources(Nessy
         
         # NessyAPU wrapper
         src/apu/NessyAPU.cpp
+        src/apu/VoiceAllocator.cpp
         
         # Blip_Buffer (LGPL - bandlimited synthesis)
         src/apu/blip_buffer/Blip_Buffer.cpp

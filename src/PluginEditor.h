@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PluginProcessor.h"
+#include <juce_audio_utils/juce_audio_utils.h>
 
 class NessyAudioProcessorEditor : public juce::AudioProcessorEditor {
 public:
@@ -12,6 +13,9 @@ public:
 
 private:
   NessyAudioProcessor &processorRef;
+
+  // Virtual keyboard for standalone testing
+  juce::MidiKeyboardComponent keyboard;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NessyAudioProcessorEditor)
 };

@@ -10,8 +10,25 @@ const juce::Colour kAccentColor{0xff27ae60};     // Green
 } // namespace
 
 NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
-    : AudioProcessorEditor(&p), processorRef(p) {
-  setSize(600, 400);
+    : AudioProcessorEditor(&p), processorRef(p),
+      keyboard(p.getKeyboardState(),
+               juce::MidiKeyboardComponent::horizontalKeyboard) {
+  // Style the keyboard
+  keyboard.setKeyWidth(40.0f);
+  keyboard.setColour(juce::MidiKeyboardComponent::whiteNoteColourId,
+                     juce::Colour(0xffeeeeee));
+  keyboard.setColour(juce::MidiKeyboardComponent::blackNoteColourId,
+                     juce::Colour(0xff333333));
+  keyboard.setColour(juce::MidiKeyboardComponent::keySeparatorLineColourId,
+                     juce::Colour(0xff666666));
+  keyboard.setColour(juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId,
+                     kPrimaryColor.withAlpha(0.3f));
+  keyboard.setColour(juce::MidiKeyboardComponent::keyDownOverlayColourId,
+                     kPrimaryColor.withAlpha(0.6f));
+
+  addAndMakeVisible(keyboard);
+
+  setSize(800, 500);
 }
 
 NessyAudioProcessorEditor::~NessyAudioProcessorEditor() {}
@@ -24,19 +41,20 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
   g.fillRect(0, 0, getWidth(), 60);
 
   g.setColour(kTextColor);
-  g.setFont(juce::Font(28.0f).boldened());
+  g.setFont(juce::FontOptions(28.0f).withStyle("Bold"));
   g.drawText("NESSY", getLocalBounds().removeFromTop(60),
              juce::Justification::centred);
 
   // Subtitle
-  g.setFont(juce::Font(14.0f));
+  g.setFont(juce::FontOptions(14.0f));
   g.setColour(kTextColor.withAlpha(0.6f));
   g.drawText("NES APU Synthesizer",
              getLocalBounds().removeFromTop(80).removeFromBottom(20),
              juce::Justification::centred);
 
-  // Channel labels (placeholder for future UI)
-  auto bounds = getLocalBounds().reduced(20).withTrimmedTop(80);
+  // Channel labels
+  auto bounds =
+      getLocalBounds().reduced(20).withTrimmedTop(80).withTrimmedBottom(100);
   int channelWidth = bounds.getWidth() / 4;
 
   juce::StringArray channels = {"PULSE 1", "PULSE 2", "TRIANGLE", "NOISE"};
@@ -55,18 +73,22 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
 
     // Channel name
     g.setColour(kTextColor);
-    g.setFont(juce::Font(12.0f).boldened());
+    g.setFont(juce::FontOptions(12.0f).withStyle("Bold"));
     g.drawText(channels[i], channelBounds.removeFromTop(30),
                juce::Justification::centred);
   }
 
   // Version info
   g.setColour(kTextColor.withAlpha(0.4f));
-  g.setFont(juce::Font(10.0f));
-  g.drawText("v0.1.0 | GPL-3.0", getLocalBounds().removeFromBottom(20),
+  g.setFont(juce::FontOptions(10.0f));
+  g.drawText("v0.1.0 | GPL-3.0 | 4-Voice Poly Mode",
+             getLocalBounds().removeFromBottom(20),
              juce::Justification::centred);
 }
 
 void NessyAudioProcessorEditor::resized() {
-  // Layout will be updated when we add actual controls
+  auto bounds = getLocalBounds();
+
+  // Keyboard at the bottom
+  keyboard.setBounds(bounds.removeFromBottom(80));
 }

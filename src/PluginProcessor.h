@@ -1,9 +1,11 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_audio_utils/juce_audio_utils.h>
 #include <memory>
 
-class NessyAPU; // Forward declaration
+class NessyAPU;
+class VoiceAllocator;
 
 class NessyAudioProcessor : public juce::AudioProcessor {
 public:
@@ -36,12 +38,21 @@ public:
   void getStateInformation(juce::MemoryBlock &destData) override;
   void setStateInformation(const void *data, int sizeInBytes) override;
 
+  // Access to keyboard state for UI
+  juce::MidiKeyboardState &getKeyboardState() { return keyboardState; }
+
 private:
   // Audio parameters
   juce::AudioProcessorValueTreeState parameters;
 
   // NES APU emulation
   std::unique_ptr<NessyAPU> apu;
+
+  // Voice allocator
+  std::unique_ptr<VoiceAllocator> voiceAllocator;
+
+  // Keyboard state for standalone virtual keyboard
+  juce::MidiKeyboardState keyboardState;
 
   // Current sample rate
   double currentSampleRate = 44100.0;

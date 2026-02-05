@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "apu/NessyAPU.h"
+#include "apu/VoiceAllocator.h"
 
 static juce::AudioProcessorValueTreeState::ParameterLayout
 createParameterLayout() {
@@ -36,6 +37,12 @@ createParameterLayout() {
   layout.add(std::make_unique<juce::AudioParameterBool>(
       juce::ParameterID("noiseMode", 1), "Noise Mode (Short)", false));
 
+  // Voice allocation mode
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID("voiceMode", 1), "Voice Mode",
+      juce::StringArray{"Mono", "Poly 4", "Split"},
+      1)); // Default to Poly 4
+
   return layout;
 }
 
@@ -44,7 +51,10 @@ NessyAudioProcessor::NessyAudioProcessor()
           "Output", juce::AudioChannelSet::stereo(), true)),
       parameters(*this, nullptr, juce::Identifier("NessyParameters"),
                  createParameterLayout()),
-      apu(std::make_unique<NessyAPU>()) {}
+      apu(std::make_unique<NessyAPU>()),
+      voiceAllocator(std::make_unique<VoiceAllocator>()) {
+  voiceAllocator->setAPU(apu.get());
+}
 
 NessyAudioProcessor::~NessyAudioProcessor() {}
 
@@ -85,7 +95,10 @@ void NessyAudioProcessor::prepareToPlay(double sampleRate,
       parameters.getRawParameterValue("noiseEnable")->load() > 0.5f);
 }
 
-void NessyAudioProcessor::releaseResources() { apu->reset(); }
+void NessyAudioProcessor::releaseResources() {
+  voiceAllocator->allNotesOff();
+  apu->reset();
+}
 
 bool NessyAudioProcessor::isBusesLayoutSupported(
     const BusesLayout &layouts) const {
@@ -117,19 +130,26 @@ void NessyAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   bool noiseMode = parameters.getRawParameterValue("noiseMode")->load() > 0.5f;
   apu->setNoiseMode(noiseMode);
 
-  // Process MIDI messages
-  // For simplicity, route all notes to Pulse 1 (mono mode for now)
+  // Update voice allocation mode
+  int voiceMode =
+      static_cast<int>(parameters.getRawParameterValue("voiceMode")->load());
+  voiceAllocator->setMode(static_cast<VoiceAllocator::Mode>(voiceMode));
+
+  // Add virtual keyboard events to the MIDI buffer
+  keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
+
+  // Process MIDI messages through voice allocator
   for (const auto metadata : midiMessages) {
     auto message = metadata.getMessage();
 
     if (message.isNoteOn()) {
-      int noteNumber = message.getNoteNumber();
-      float velocity = message.getFloatVelocity();
-
-      // Route to Pulse 1 for now (will implement proper voice allocation later)
-      apu->noteOn(NessyAPU::PULSE1, noteNumber, velocity);
+      voiceAllocator->noteOn(message.getChannel() - 1, message.getNoteNumber(),
+                             message.getFloatVelocity());
     } else if (message.isNoteOff()) {
-      apu->noteOff(NessyAPU::PULSE1);
+      voiceAllocator->noteOff(message.getChannel() - 1,
+                              message.getNoteNumber());
+    } else if (message.isAllNotesOff() || message.isAllSoundOff()) {
+      voiceAllocator->allNotesOff();
     }
   }
 
