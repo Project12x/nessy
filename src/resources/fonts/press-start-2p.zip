@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <link rel="preconnect" href="https://www.1001freefonts.com/themes/blue/javascript/global-min.js?r=5">
+    <link rel="preconnect" href="https://www.1001freefonts.com/themes/blue/styles/screen-min.css?r=97">
+    <link rel="alternate" hreflang="en" href="https://www.1001freefonts.com/">
+    <link rel="alternate" hreflang="es" href="https://www.1001freefonts.com/es/">
+    <link rel="alternate" hreflang="fr" href="https://www.1001freefonts.com/fr/">
+    <link rel="alternate" hreflang="de" href="https://www.1001freefonts.com/de/">
+    <link rel="alternate" hreflang="pt" href="https://www.1001freefonts.com/pt/">
+    <link rel="alternate" hreflang="it" href="https://www.1001freefonts.com/it/">
+    <link rel="preconnect" href="https://a.pub.network/" crossorigin />
+<link rel="preconnect" href="https://b.pub.network/" crossorigin />
+<link rel="preconnect" href="https://c.pub.network/" crossorigin />
+<link rel="preconnect" href="https://d.pub.network/" crossorigin />
+<link rel="preconnect" href="https://c.amazon-adsystem.com" crossorigin />
+<link rel="preconnect" href="https://s.amazon-adsystem.com" crossorigin />
+<link rel="preconnect" href="https://btloader.com/" crossorigin />
+<link rel="preconnect" href="https://api.btloader.com/" crossorigin />
+    <meta charset="utf-8">
+    <title>Komika Hands Font | 1001 Free Fonts</title>
+    <meta name="description" content="Download Komika Hands font for Windows and Mac. Komika Hands font was designed by Apostrophic Labs and has been downloaded 5,086 times.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-site-verification" content="XrSKKdOsDi3FNT2bKC3X8c6_gLF0OPnyotXMHNSppps">
+    <meta name="robots" content="index, follow">
+    <meta name="twitter:site" content="@1001FreeFonts">
+    <meta name="author" content="1001 Free Fonts">
+    <meta property="og:title" content="Komika Hands Font | 1001 Free Fonts">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.1001freefonts.com/komika-hands.font">
+    <meta property="og:image" content="https://www.1001freefonts.com/logo.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:image:alt" content="Free Fonts">
+    <meta property="og:description" content="Download Komika Hands font for Windows and Mac. Komika Hands font was designed by Apostrophic Labs and has been downloaded 5,086 times.">
+    <meta property="og:site_name" content="1001 Free Fonts">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Komika Hands Font | 1001 Free Fonts">
+    <meta name="twitter:description" content="Download Komika Hands font for Windows and Mac. Komika Hands font was designed by Apostrophic Labs and has been downloaded 5,086 times.">
+    <meta name="twitter:image" content="https://www.1001freefonts.com/logo.png">
+    <meta name="twitter:site" content="@1001freefonts">
+    <meta name="twitter:creator" content="@1001freefonts">
+    <link rel="manifest" href="https://www.1001freefonts.com/manifest.json">
+    <link rel="shortcut icon" type="image/x-icon" href="https://www.1001freefonts.com/themes/blue/images/favicon.ico">
+    <link rel="alternate" href="https://www.1001freefonts.com/rss.php" title="Latest Fonts" type="application/rss+xml">
+    <link rel="stylesheet" href="https://www.1001freefonts.com/themes/blue/styles/screen-min.css?r=97" type="text/css">
+    <link rel="canonical" href="https://www.1001freefonts.com/komika-hands.font">
+            <script type="application/ld+json">
+        {
+            "@context": "http://schema.org",
+            "@type": "Organization",
+            "url": "https://www.1001freefonts.com/",
+            "logo": "https://www.1001freefonts.com/logo.png",
+            "name": "1001 Free Fonts",
+            "sameAs" : [
+                "https://www.facebook.com/1001freefonts",
+                "https://twitter.com/1001freefonts",
+                "https://www.instagram.com/1001freefonts/"
+            ],
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": "https://www.1001freefonts.com/search.php?q={search_term}",
+                "query-input": "required name=search_term"
+            }
+        }
+    </script>
+    <script data-cfasync="false" type="text/javascript">
+  var freestar = freestar || {};
+  freestar.queue = freestar.queue || [];
+  freestar.config = freestar.config || {};
+  freestar.config.enabled_slots = [];
+  freestar.initCallback = function () { (freestar.config.enabled_slots.length === 0) ? freestar.initCallbackCalled = false : freestar.newAdSlots(freestar.config.enabled_slots) }
+</script>
+<script src="https://a.pub.network/1001freefonts-com/pubfig.min.js" data-cfasync="false" async></script><!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-YW859PMFK6"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-YW859PMFK6');
+</script>
+    <style>
+        #pmLink {
+            visibility: hidden;
+            text-decoration: none;
+            cursor: pointer;
+            background: transparent;
+            border: none;
+        }
+
+        #pmLink:hover {
+            visibility: visible;
+            color: grey;
+        }
+    </style>
+    <style>
+        html.wf-loading * {
+            opacity: 0;
+        }
+    </style>
+    <script>
+        var licenceTypeSelectText = "Select license type";
+    </script>
+    <style>
+        #pmLink {
+            visibility: hidden;
+            text-decoration: none;
+            cursor: pointer;
+            background: transparent;
+            border: none;
+        }
+
+        #pmLink:hover {
+            visibility: visible;
+            color: grey;
+        }
+    </style>
+    <style type="text/css">
+        .donateButton .donateButtonElement a:before {
+            content: "Donate To Designer";
+        }
+        .buyButton .buyCommercialElement a:before {
+            content: "Buy Commercial License";
+        }
+        .downloadButton .downloadButtonElement a:before {
+            content: "DOWNLOAD";
+        }
+        .previewLicenceTextCss.free_for_personal_use:before {
+            content: "Free for Personal Use";
+        }
+        .previewLicenceTextCss.public_domain__gpl__ofl:before {
+            content: "Public domain, GPL, OFL";
+        }
+        .previewLicenceTextCss.demo:before {
+            content: "Demo";
+        }
+        .previewLicenceTextCss.free:before {
+            content: "Free";
+        }
+        .previewLicenceTextCss.donationware:before {
+            content: "Donationware";
+        }
+        .previewLicenceTextCss.unknown:before {
+            content: "Unknown";
+        }
+        .previewLicenceTextCss.shareware:before {
+            content: "Shareware";
+        }
+    </style>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1256708364979587"
+     crossorigin="anonymous"></script>
+</head>
+<body>
+<div class="toolbarContainer">
+    <div class="toolbarInnerContainer">
+        <!-- toolbar section -->
+        <div class="mainNavBar">
+            <div class="mainNavBarInner">
+                <div class="navBarRightSearch responsiveCenter">
+                                        <div class="navBarRightSearchWrapper responsiveMobileCenter">
+                        <form method="GET" action="/search.php">
+                            <input name="q" id="searchQuery" type="text" placeholder="Search Fonts..."/>
+                            <input
+                                    src="https://www.1001freefonts.com/themes/blue/images/icons/search.jpg"
+                                    name="search"
+                                    alt="search"
+                                    type="image"
+                                    aria-label="Search Fonts..."
+                                    style="padding: 5px; background-color: transparent; border: none;"/>
+                        </form>
+                    </div>
+                </div>
+                <div class="membersNavLink">
+                                            Members&nbsp;&nbsp;&nbsp;<a href="/members/">Log In</a>&nbsp;&nbsp;<span class="break">|</span>&nbsp;&nbsp;<a href="/members">Join Now</a>
+                                    </div>
+                <div class="navBarLeftLinks">
+                    <a href="/new-fonts.php">New</a>&nbsp;&nbsp;<span class="break">|</span>&nbsp;&nbsp;<a href="/top-fonts.php">Top</a>&nbsp;&nbsp;<span class="break">|</span>&nbsp;&nbsp;<a href="/submit-font.php">Submit</a>&nbsp;&nbsp;<span class="break">|</span>&nbsp;&nbsp;<a href="/designers.php">Designers</a>&nbsp;&nbsp;<span class="break">|</span>&nbsp;&nbsp;<a href="https://www.ultimatefontdownload.com/">10,000 Fonts</a>&nbsp;&nbsp;<span class="break">|</span>&nbsp;&nbsp;<a href="/contact.php">Contact</a>                </div>
+                <div class="clear"><!-- --></div>
+            </div>
+            <div class="clear"><!-- --></div>
+        </div>
+        <div class="clear"><!-- --></div>
+    </div>
+
+    <select id="tinynav" class="tinynav" onChange="eval(document.getElementById('tinynav').options[document.getElementById('tinynav').selectedIndex].getAttribute('data-jsaction'));" aria-label="Main navigation">
+        <option>- Navigation -</option>
+        <option data-jsaction="window.location='/new-fonts.php';" >New</option>
+        <option data-jsaction="window.location='/top-fonts.php';" >Top</option>
+        <option data-jsaction="window.location='/submit-font.php';" >Submit</option>
+        <option data-jsaction="window.location='https://www.ultimatefontdownload.com'">10,000 Fonts</option>
+        <option data-jsaction="window.location='/links.php';" >Links</option>
+        <option data-jsaction="window.location='/faq.php';" >FAQ</option>
+        <option data-jsaction="window.location='/contact.php';" >Contact</option>
+                    <option data-jsaction="window.location='/members';">Log In</option>
+            <option data-jsaction="window.location='/members';">Sign Up</option>
+            </select>
+
+</div>
+<div class="clear"><!-- --></div>
+<!--<div id="fb-root"></div>
+<script>(function(d, s, id) {
+        var js, fjs = d.getElementsByTagName(s)[0];
+        if (d.getElementById(id))
+            return;
+        js = d.createElement(s);
+        js.id = id;
+        js.src = "//connect.facebook.net/en_GB/all.js#xfbml=1";
+        fjs.parentNode.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));</script>-->
+
+<div class="bodyContainer">
+    <div class="mainPageContainer">
+        <div class="pageInnerContainer">
+            <!-- header section -->
+            <div class="headerBar">
+                <!-- main logo mobile -->
+                <div class="mainLogoMobile">
+                    <a href="/">
+                        <img src="https://www.1001freefonts.com/themes/blue/images/main_logo.png" width="160" height="90" alt="1001 Free Fonts" title="1001 Free Fonts"/>
+                    </a>
+                </div>
+
+                                    <!-- header ads -->
+                    <div class="mainHeaderAds" style="max-height: 110px; overflow:hidden;">
+                        <div class="mainHeaderAds" style="overflow:hidden;">
+                            <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1256708364979587"
+     crossorigin="anonymous"></script>
+<!-- Top -->
+<ins class="adsbygoogle"
+     style="display:inline-block;width:728px;height:90px"
+     data-ad-client="ca-pub-1256708364979587"
+     data-ad-slot="1569719923"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>                        </div>
+                                            </div>
+                
+                                                    
+                <!-- main logo -->
+                <div class="mainLogo ">
+                    <a href="/">
+                        <img src="https://www.1001freefonts.com/themes/blue/images/main_logo.png" width="160" height="90" alt="1001 Free Fonts" title="1001 Free Fonts"/>
+                    </a>
+                </div>
+
+                                                    
+                <div class="clear"><!-- --></div>
+            </div>
+            <div class="clear"><!-- --></div>
+        </div>
+    </div>
+    <div class="clear"><!-- --></div>
+    <div class="mainPageContainer">
+        <div class="pageInnerContainer">
+
+                <style>
+        .breadcrumb-nav {
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+        .breadcrumb-nav ol {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .breadcrumb-nav li {
+            display: flex;
+            align-items: center;
+        }
+        .breadcrumb-nav li a {
+            text-decoration: none;
+            padding: 4px 6px;
+        }
+        .breadcrumb-nav li.first a {
+            padding: 4px 6px 4px 0px;
+        }
+        .breadcrumb-nav li a:hover {
+            text-decoration: underline;
+        }
+        .breadcrumb-nav li span {
+            padding: 4px 6px;
+            color: #555;
+        }
+        .breadcrumb-nav li.first span {
+            padding: 4px 6px 4px 0px;
+        }
+        .breadcrumb-nav li.last span.no-link {
+            padding: 4px 0px 4px 12px;
+        }
+        .breadcrumb-nav li.middle span.no-link {
+            padding: 4px 12px 4px 12px;
+        }
+        .breadcrumb-nav li + li:before {
+            content: "›";
+            margin: 0 2px;
+            color: #888;
+        }
+        @media (max-width: 1023px) {
+            .breadcrumb-nav {
+                text-align: center;
+            }
+            .breadcrumb-nav ol {
+                margin: 0 auto;
+                justify-content: center;
+            }
+        }
+    </style>
+    <nav class="breadcrumb-nav" aria-label="Breadcrumbs">
+    <ol itemscope itemtype="https://schema.org/BreadcrumbList">
+    <meta itemprop="name" content="Main Site Breadcrumbs (HTML)" />
+    <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem" class="first"><a itemprop="item" href="https://www.1001freefonts.com/"><span itemprop="name">Home</span></a><meta itemprop="position" content="1" /></li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem" class="last"><span itemprop="name" class="no-link">Komika Hands Font</span><meta itemprop="position" content="2" /></li>    </ol>
+    </nav>
+    
+                        <!-- category section -->
+            <div id="categoryBar" class="categoryBar" style="display:block; margin-bottom: 0px;">
+                <div class="categoryBarInner">
+                    <!-- letters -->
+                    <div class="letterListing responsiveCenter">
+                        <div class='letterLink' onClick="window.location='/afonts.php';"><a href='/afonts.php'>A</a></div><div class='letterLink' onClick="window.location='/bfonts.php';"><a href='/bfonts.php'>B</a></div><div class='letterLink' onClick="window.location='/cfonts.php';"><a href='/cfonts.php'>C</a></div><div class='letterLink' onClick="window.location='/dfonts.php';"><a href='/dfonts.php'>D</a></div><div class='letterLink' onClick="window.location='/efonts.php';"><a href='/efonts.php'>E</a></div><div class='letterLink' onClick="window.location='/ffonts.php';"><a href='/ffonts.php'>F</a></div><div class='letterLink' onClick="window.location='/gfonts.php';"><a href='/gfonts.php'>G</a></div><div class='letterLink' onClick="window.location='/hfonts.php';"><a href='/hfonts.php'>H</a></div><div class='letterLink' onClick="window.location='/ifonts.php';"><a href='/ifonts.php'>I</a></div><div class='letterLink' onClick="window.location='/jfonts.php';"><a href='/jfonts.php'>J</a></div><div class='letterLink' onClick="window.location='/kfonts.php';"><a href='/kfonts.php'>K</a></div><div class='letterLink' onClick="window.location='/lfonts.php';"><a href='/lfonts.php'>L</a></div><div class='letterLink' onClick="window.location='/mfonts.php';"><a href='/mfonts.php'>M</a></div><div class='letterLink' onClick="window.location='/nfonts.php';"><a href='/nfonts.php'>N</a></div><div class='letterLink' onClick="window.location='/ofonts.php';"><a href='/ofonts.php'>O</a></div><div class='letterLink' onClick="window.location='/pfonts.php';"><a href='/pfonts.php'>P</a></div><div class='letterLink' onClick="window.location='/qfonts.php';"><a href='/qfonts.php'>Q</a></div><div class='letterLink' onClick="window.location='/rfonts.php';"><a href='/rfonts.php'>R</a></div><div class='letterLink' onClick="window.location='/sfonts.php';"><a href='/sfonts.php'>S</a></div><div class='letterLink' onClick="window.location='/tfonts.php';"><a href='/tfonts.php'>T</a></div><div class='letterLink' onClick="window.location='/ufonts.php';"><a href='/ufonts.php'>U</a></div><div class='letterLink' onClick="window.location='/vfonts.php';"><a href='/vfonts.php'>V</a></div><div class='letterLink' onClick="window.location='/wfonts.php';"><a href='/wfonts.php'>W</a></div><div class='letterLink' onClick="window.location='/xfonts.php';"><a href='/xfonts.php'>X</a></div><div class='letterLink' onClick="window.location='/yfonts.php';"><a href='/yfonts.php'>Y</a></div><div class='letterLink' onClick="window.location='/zfonts.php';"><a href='/zfonts.php'>Z</a></div><div class='letterLink' onClick="window.location='/numfonts.php';"><a href='/numfonts.php'>#</a></div>                        <div class="clear"><!-- --></div>
+                    </div>
+                    <div class="clear"><!-- --></div>
+
+                    <table class="categoryWrapper responsiveHide">
+                        <tr>
+                            <td>
+                                <!-- categories -->
+                                <table><tr><td style="width: 12.50%;"><div class='categoryLink'><a href='/3d-fonts.php'>3D</a></div><div class='categoryLink'><a href='/alien-fonts.php'>Alien</a></div><div class='categoryLink'><a href='/animal-fonts.php'>Animal</a></div><div class='categoryLink'><a href='/army-stencil-fonts.php'>Army Stencil</a></div><div class='categoryLink'><a href='/asian-arabic-fonts.php'>Asian Arabic</a></div><div class='categoryLink'><a href='/bitmap-pixel-fonts.php'>Bitmap Pixel</a></div><div class='categoryLink'><a href='/blackletter-fonts.php'>Blackletter</a></div><div class='categoryLink'><a href='/blurred-fonts.php'>Blurred</a></div></td><td style="width: 12.50%;"><div class='categoryLink'><a href='/brush-fonts.php'>Brush</a></div><div class='categoryLink'><a href='/calligraphy-fonts.php'>Calligraphy</a></div><div class='categoryLink'><a href='/celtic-irish-fonts.php'>Celtic Irish</a></div><div class='categoryLink'><a href='/chalk-crayon-fonts.php'>Chalk Crayon</a></div><div class='categoryLink'><a href='/christmas-fonts.php'>Christmas</a></div><div class='categoryLink'><a href='/comic-cartoon-fonts.php'>Comic Cartoon</a></div><div class='categoryLink'><a href='/computer-fonts.php'>Computer</a></div><div class='categoryLink'><a href='/curly-fonts.php'>Curly</a></div></td><td style="width: 12.50%;"><div class='categoryLink'><a href='/decorative-fonts.php'>Decorative</a></div><div class='categoryLink'><a href='/dingbats-fonts.php'>Dingbats</a></div><div class='categoryLink'><a href='/disney-fonts.php'>Disney</a></div><div class='categoryLink'><a href='/distorted-eroded-fonts.php'>Distorted Eroded</a></div><div class='categoryLink'><a href='/dotted-fonts.php'>Dotted</a></div><div class='categoryLink'><a href='/easter-fonts.php'>Easter</a></div><div class='categoryLink'><a href='/famous-fonts.php'>Famous</a></div><div class='categoryLink'><a href='/fancy-fonts.php'>Fancy</a></div></td><td style="width: 12.50%;"><div class='categoryLink'><a href='/fantasy-fonts.php'>Fantasy</a></div><div class='categoryLink'><a href='/fire-fonts.php'>Fire</a></div><div class='categoryLink'><a href='/fixed-width-fonts.php'>Fixed Width</a></div><div class='categoryLink'><a href='/gothic-fonts.php'>Gothic</a></div><div class='categoryLink'><a href='/graffiti-fonts.php'>Graffiti</a></div><div class='categoryLink'><a href='/greek-roman-fonts.php'>Greek Roman</a></div><div class='categoryLink'><a href='/groovy-fonts.php'>Groovy</a></div><div class='categoryLink'><a href='/halloween-fonts.php'>Halloween</a></div></td><td style="width: 12.50%;"><div class='categoryLink'><a href='/handwriting-fonts.php'>Handwriting</a></div><div class='categoryLink'><a href='/headline-fonts.php'>Headline</a></div><div class='categoryLink'><a href='/horror-fonts.php'>Horror</a></div><div class='categoryLink'><a href='/ice-snow-fonts.php'>Ice Snow</a></div><div class='categoryLink'><a href='/italic-fonts.php'>Italic</a></div><div class='categoryLink'><a href='/lcd-fonts.php'>LCD</a></div><div class='categoryLink'><a href='/medieval-fonts.php'>Medieval</a></div><div class='categoryLink'><a href='/mexican-fonts.php'>Mexican</a></div></td><td style="width: 12.50%;"><div class='categoryLink'><a href='/modern-fonts.php'>Modern</a></div><div class='categoryLink'><a href='/movies-tv-fonts.php'>Movies TV</a></div><div class='categoryLink'><a href='/old-english-fonts.php'>Old English</a></div><div class='categoryLink'><a href='/old-school-fonts.php'>Old School</a></div><div class='categoryLink'><a href='/outline-fonts.php'>Outline</a></div><div class='categoryLink'><a href='/pointed-fonts.php'>Pointed</a></div><div class='categoryLink'><a href='/retro-fonts.php'>Retro</a></div><div class='categoryLink'><a href='/rock-stone-fonts.php'>Rock Stone</a></div></td><td style="width: 12.50%;"><div class='categoryLink'><a href='/rounded-fonts.php'>Rounded</a></div><div class='categoryLink'><a href='/russian-fonts.php'>Russian</a></div><div class='categoryLink'><a href='/sans-serif-fonts.php'>Sans Serif</a></div><div class='categoryLink'><a href='/school-fonts.php'>School</a></div><div class='categoryLink'><a href='/sci-fi-fonts.php'>Sci Fi</a></div><div class='categoryLink'><a href='/scratched-fonts.php'>Scratched</a></div><div class='categoryLink'><a href='/script-fonts.php'>Script</a></div><div class='categoryLink'><a href='/serif-fonts.php'>Serif</a></div></td><td style="width: 12.50%;"><div class='categoryLink'><a href='/square-fonts.php'>Square</a></div><div class='categoryLink'><a href='/tattoo-fonts.php'>Tattoo</a></div><div class='categoryLink'><a href='/trash-fonts.php'>Trash</a></div><div class='categoryLink'><a href='/typewriter-fonts.php'>Typewriter</a></div><div class='categoryLink'><a href='/usa-fonts.php'>USA</a></div><div class='categoryLink'><a href='/valentine-fonts.php'>Valentine</a></div><div class='categoryLink'><a href='/various-fonts.php'>Various</a></div><div class='categoryLink'><a href='/western-fonts.php'>Western</a></div></td></tr></table>                                <div class="clear"><!-- --></div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- responsive categories -->
+                    <div class="responsiveCategories">
+                        <div class='categoryLink'><a href='/3d-fonts.php'>3D</a></div><div class='categoryLink'><a href='/alien-fonts.php'>Alien</a></div><div class='categoryLink'><a href='/animal-fonts.php'>Animal</a></div><div class='categoryLink'><a href='/army-stencil-fonts.php'>Army Stencil</a></div><div class='categoryLink'><a href='/asian-arabic-fonts.php'>Asian Arabic</a></div><div class='categoryLink'><a href='/bitmap-pixel-fonts.php'>Bitmap Pixel</a></div><div class='categoryLink'><a href='/blackletter-fonts.php'>Blackletter</a></div><div class='categoryLink'><a href='/blurred-fonts.php'>Blurred</a></div><div class='categoryLink'><a href='/brush-fonts.php'>Brush</a></div><div class='categoryLink'><a href='/calligraphy-fonts.php'>Calligraphy</a></div><div class='categoryLink'><a href='/celtic-irish-fonts.php'>Celtic Irish</a></div><div class='categoryLink'><a href='/chalk-crayon-fonts.php'>Chalk Crayon</a></div><div class='categoryLink'><a href='/christmas-fonts.php'>Christmas</a></div><div class='categoryLink'><a href='/comic-cartoon-fonts.php'>Comic Cartoon</a></div><div class='categoryLink'><a href='/computer-fonts.php'>Computer</a></div><div class='categoryLink'><a href='/curly-fonts.php'>Curly</a></div><div class='categoryLink'><a href='/decorative-fonts.php'>Decorative</a></div><div class='categoryLink'><a href='/dingbats-fonts.php'>Dingbats</a></div><div class='categoryLink'><a href='/disney-fonts.php'>Disney</a></div><div class='categoryLink'><a href='/distorted-eroded-fonts.php'>Distorted Eroded</a></div><div class='categoryLink'><a href='/dotted-fonts.php'>Dotted</a></div><div class='categoryLink'><a href='/easter-fonts.php'>Easter</a></div><div class='categoryLink'><a href='/famous-fonts.php'>Famous</a></div><div class='categoryLink'><a href='/fancy-fonts.php'>Fancy</a></div><div class='categoryLink'><a href='/fantasy-fonts.php'>Fantasy</a></div><div class='categoryLink'><a href='/fire-fonts.php'>Fire</a></div><div class='categoryLink'><a href='/fixed-width-fonts.php'>Fixed Width</a></div><div class='categoryLink'><a href='/gothic-fonts.php'>Gothic</a></div><div class='categoryLink'><a href='/graffiti-fonts.php'>Graffiti</a></div><div class='categoryLink'><a href='/greek-roman-fonts.php'>Greek Roman</a></div><div class='categoryLink'><a href='/groovy-fonts.php'>Groovy</a></div><div class='categoryLink'><a href='/halloween-fonts.php'>Halloween</a></div><div class='categoryLink'><a href='/handwriting-fonts.php'>Handwriting</a></div><div class='categoryLink'><a href='/headline-fonts.php'>Headline</a></div><div class='categoryLink'><a href='/horror-fonts.php'>Horror</a></div><div class='categoryLink'><a href='/ice-snow-fonts.php'>Ice Snow</a></div><div class='categoryLink'><a href='/italic-fonts.php'>Italic</a></div><div class='categoryLink'><a href='/lcd-fonts.php'>LCD</a></div><div class='categoryLink'><a href='/medieval-fonts.php'>Medieval</a></div><div class='categoryLink'><a href='/mexican-fonts.php'>Mexican</a></div><div class='categoryLink'><a href='/modern-fonts.php'>Modern</a></div><div class='categoryLink'><a href='/movies-tv-fonts.php'>Movies TV</a></div><div class='categoryLink'><a href='/old-english-fonts.php'>Old English</a></div><div class='categoryLink'><a href='/old-school-fonts.php'>Old School</a></div><div class='categoryLink'><a href='/outline-fonts.php'>Outline</a></div><div class='categoryLink'><a href='/pointed-fonts.php'>Pointed</a></div><div class='categoryLink'><a href='/retro-fonts.php'>Retro</a></div><div class='categoryLink'><a href='/rock-stone-fonts.php'>Rock Stone</a></div><div class='categoryLink'><a href='/rounded-fonts.php'>Rounded</a></div><div class='categoryLink'><a href='/russian-fonts.php'>Russian</a></div><div class='categoryLink'><a href='/sans-serif-fonts.php'>Sans Serif</a></div><div class='categoryLink'><a href='/school-fonts.php'>School</a></div><div class='categoryLink'><a href='/sci-fi-fonts.php'>Sci Fi</a></div><div class='categoryLink'><a href='/scratched-fonts.php'>Scratched</a></div><div class='categoryLink'><a href='/script-fonts.php'>Script</a></div><div class='categoryLink'><a href='/serif-fonts.php'>Serif</a></div><div class='categoryLink'><a href='/square-fonts.php'>Square</a></div><div class='categoryLink'><a href='/tattoo-fonts.php'>Tattoo</a></div><div class='categoryLink'><a href='/trash-fonts.php'>Trash</a></div><div class='categoryLink'><a href='/typewriter-fonts.php'>Typewriter</a></div><div class='categoryLink'><a href='/usa-fonts.php'>USA</a></div><div class='categoryLink'><a href='/valentine-fonts.php'>Valentine</a></div><div class='categoryLink'><a href='/various-fonts.php'>Various</a></div><div class='categoryLink'><a href='/western-fonts.php'>Western</a></div>                    </div>
+                    <div class="clear"><!-- --></div>
+
+                </div>
+            </div>
+            <div class="clear"><!-- --></div>
+            
+                            <div class="categoryBarInner" style="margin-top: 14px;"><span style="font-weight: bold;"><font size="3"><div align="center"><a href="https://www.ultimatefontdownload.com/" target="_blank">Download 10,000 fonts with one click - Licensed for commercial use - Instant and unlimited access - Click Here</a></div></font></span></div>            
+            <div class="clear"><!-- --></div>
+                                                <div class="topAd" style="text-align: center; margin-top: 14px;">
+                        <div align="center"><table style="height: 90px;">
+  <tr>
+    <td><!-- Tag ID: 1001fonts_728x90_970x90_970x250_320x50_ATF -->
+<div align="center" data-freestar-ad="__320x250 __970x90" id="1001fonts_728x90_970x90_970x250_320x50_ATF">
+  <script data-cfasync="false" type="text/javascript">
+    freestar.config.enabled_slots.push({ placementName: "1001fonts_728x90_970x90_970x250_320x50_ATF", slotId: "1001fonts_728x90_970x90_970x250_320x50_ATF" });
+  </script>
+</div></td>
+  </tr>
+</table></div>                    </div>
+                                        <div class="clear"><!-- --></div>
+
+            <!-- body section -->
+            <div class="bodyBarWrapper">
+                <div class="mainPageContainer">
+                    <div class="mainPageContent">
+                        <table class="mainLayoutTable">
+                            <tr>
+                                <td class="cell1">
+<div class='clear'></div>	<div class='genericPageTitle'>
+		<div class='contentLeft'>
+			<h1>
+				Komika Hands Font
+			</h1>
+		</div>
+		<div class='clear'><!-- --></div>
+	</div>
+<div class='pageMainContent'>
+    <ul class='fontListingList'>
+    <li><div class='fontPreviewWrapper'>
+		<div class='fontPreviewHeader'>
+			<div class='fontPreviewHeaderInner responsiveDisplay'>
+				<div class='fontPreviewTitle responsiveMobileCenter'>
+					<strong>Komika Hands</strong>
+- <span class="previewLicenceTextCss free"></span><br/>
+				<div class='clear'><!-- --></div>
+			</div>
+				<div class='responsiveFontPreviewClear'></div>
+				<div class='buttonsRight responsiveMobileCenter'>
+				<div class='downloadButton downloadButtonMain'>
+					<div class='downloadButtonElement fontDownloadButton' onClick="window.location='/d/5009/komika-hands.zip';" style='margin-top: 8px;'>
+						<a href='/d/5009/komika-hands.zip' aria-label="Download Komika Hands Font"></a>
+					</div>
+				</div>
+				</div>
+				<div class='clear'><!-- --></div>
+		</div>
+				<div class='clear'><!-- --></div>
+			<div class='fontPreviewHeaderInner responsiveHide'>
+<div class='fontTopCategories'>
+in :
+<a href='/handwriting-fonts.php'>Handwriting</a>
+</div>
+				<div class='fontPreviewTitle'>
+					<strong>Komika Hands</strong>
+					- 
+					<a href='/designer-apostrophic-labs-fontlisting.php'>Apostrophic Labs</a>
+&nbsp;<span style='color:#979797;'>5,086 downloads
+</span>
+				</div>
+				<div class='clear'><!-- --></div>
+			</div>
+		</div>
+		<div class='fontPreviewImageWrapperWrapper'>
+		<div class='fontPreviewImageWrapperDefault' style='background: url(https://www.1001freefonts.com/storage/preview_cache/5009/bb64d08704726f1297030d72c47dae47.png) no-repeat left top; height: 102px;'>
+ </div>
+			<div class='rightSection'>
+				<div class='previewLicenceText'>
+<span class="previewLicenceTextCss free"></span><br/>
+				<div class='downloadButton downloadButtonMain'>
+					<div class='downloadButtonElement' onClick="window.location='/d/5009/komika-hands.zip';" style='margin-top: 8px;'>
+						<a href='/d/5009/komika-hands.zip' aria-label="Download Komika Hands Font"></a>
+					</div>
+				</div>
+				<div class='clear'><!-- --></div>
+			</div>
+		</div>
+ </div>
+ </div>
+</li>    </ul>
+<div class='pageDetailsLeft'>
+	<div class='characterMap'>	<div class='genericPageTitle'>
+		<div class='contentLeft'>
+			<h1>
+				Character Map
+			</h1>
+		</div>
+		<div class='clear'><!-- --></div>
+	</div>		<img src='https://www.1001freefonts.com/font_preview_character_map.php?f=5009&c=000000&ffp=2048ffb76fd39f6e3a8228c8eff81ba6' alt='character map' style='width: 100%; height: auto;'/>	</div><div class='clear'></div><div class="inlinePageAds" style="padding-top: 10px;"><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1256708364979587"
+     crossorigin="anonymous"></script>
+<!-- MID -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-1256708364979587"
+     data-ad-slot="4138917213"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script></div><div class="clear"></div><!--<div class="fontDetailsBottomLeft">-->
+<div>
+    <div class="fontArchiveContents">
+	<div class='genericPageTitle'>
+		<div class='contentLeft'>
+			<h1>
+				File Contents
+			</h1>
+		</div>
+		<div class='clear'><!-- --></div>
+	</div>		<table style='width: 100%; border-spacing: 0px; border-collapse: separate;'>			<thead><tr><th style="min-width: 90px;">File name</th><th style='min-width:70px; text-align:center;'>File size</th><th style='min-width:70px; text-align:center;'>File type</th><th style='min-width:70px; text-align:center;'>Options</th></tr></thead><tr>	<td>KOMIKASK.ttf</td>	<td style='text-align:center;'>85 KB</td>	<td style='text-align:center;'>Font File</td>	<td style='text-align:center;'><a href='/d/5009/komika-hands.zip'>download</a></td></tr><tr>	<td>KOMIKSLI.ttf</td>	<td style='text-align:center;'>58 KB</td>	<td style='text-align:center;'>Font File</td>	<td style='text-align:center;'><a href='/d/5009/komika-hands.zip'>download</a></td></tr><tr>	<td>KOMIKHBI.ttf</td>	<td style='text-align:center;'>102 KB</td>	<td style='text-align:center;'>Font File</td>	<td style='text-align:center;'><a href='/d/5009/komika-hands.zip'>download</a></td></tr><tr>	<td>KOMIKSKI.ttf</td>	<td style='text-align:center;'>70 KB</td>	<td style='text-align:center;'>Font File</td>	<td style='text-align:center;'><a href='/d/5009/komika-hands.zip'>download</a></td></tr><tr>	<td>KOMIKASL.ttf</td>	<td style='text-align:center;'>77 KB</td>	<td style='text-align:center;'>Font File</td>	<td style='text-align:center;'><a href='/d/5009/komika-hands.zip'>download</a></td></tr><tr>	<td>KOMIKHI_.ttf</td>	<td style='text-align:center;'>80 KB</td>	<td style='text-align:center;'>Font File</td>	<td style='text-align:center;'><a href='/d/5009/komika-hands.zip'>download</a></td></tr><tr>	<td>KOMIKJ__.ttf</td>	<td style='text-align:center;'>106 KB</td>	<td style='text-align:center;'>Font File</td>	<td style='text-align:center;'><a href='/d/5009/komika-hands.zip'>download</a></td></tr><tr>	<td>KOMIKAHB.ttf</td>	<td style='text-align:center;'>105 KB</td>	<td style='text-align:center;'>Font File</td>	<td style='text-align:center;'><a href='/d/5009/komika-hands.zip'>download</a></td></tr><tr>	<td>Komika.txt</td>	<td style='text-align:center;'>8 KB</td>	<td style='text-align:center;'>Text File</td>	<td style='text-align:center;'><a href='https://www.1001freefonts.com/view-file/5009/S29taWthLnR4dA==/komika.txt' target='_blank'>view</a></td></tr><tr>	<td>KOMIKAH_.ttf</td>	<td style='text-align:center;'>80 KB</td>	<td style='text-align:center;'>Font File</td>	<td style='text-align:center;'><a href='/d/5009/komika-hands.zip'>download</a></td></tr><tr>	<td>KOMIKJI_.ttf</td>	<td style='text-align:center;'>104 KB</td>	<td style='text-align:center;'>Font File</td>	<td style='text-align:center;'><a href='/d/5009/komika-hands.zip'>download</a></td></tr>		</table>    </div>
+    <div class='clear'><!-- --></div>
+        	<div class='genericPageTitle'>
+		<div class='contentLeft'>
+			<h1>
+				Font Details
+			</h1>
+		</div>
+		<div class='clear'><!-- --></div>
+	</div><div class='clear'><!-- --></div>    <div class="fontDesigner" style="padding-bottom: 0px;">
+        <table style="width: 100%; border-spacing: 0px; border-collapse: separate;">
+                    
+                <tr>
+                    <td style="min-width: 120px; width: 25%;">Designer Name:</td>
+                    <td><a href='/designer-apostrophic-labs-fontlisting.php'>Apostrophic Labs</a></td>
+                </tr>
+                        <tr>
+                    <td>Font License:</td>
+                    <td>Free</td>
+                </tr>
+                </table>
+    </div>
+    <div class='clear'><!-- --></div>
+	
+	
+	
+
+		<div class="fontTagsContents">
+		<div class='genericPageTitle'>
+		<div class='contentLeft'>
+			<h1>
+				Font Categories
+			</h1>
+		</div>
+		<div class='clear'><!-- --></div>
+	</div>			<div class='clear'><!-- --></div>
+			<div class="fontTagsMain">
+	<a href="/handwriting-fonts.php" class="fontTag">Handwriting</a><a href="/lettering-fonts.php" class="fontTag">Lettering</a><a href="/pretty-fonts.php" class="fontTag">Pretty</a>			</div>
+			<div class='clear'><!-- --></div>
+		</div>
+			
+	
+	
+	<div class='genericPageTitle' style='margin-top: -6px;'>
+		<div class='contentLeft'>
+			<h1>
+				Share Font
+			</h1>
+		</div>
+		<div class='clear'><!-- --></div>
+	</div>    <div class='clear'><!-- --></div>
+
+    <div id="main-share-buttons">
+        <!-- Facebook -->
+        <a href="#" onclick="showWindowUrl('http://www.facebook.com/sharer.php?u=https://www.1001freefonts.com/komika-hands.font'); return false;"><img src="https://www.1001freefonts.com/themes/blue/images/share_icons/simple/facebook.png" alt="Facebook" /></a>
+
+        <!-- Pinterest -->
+        <a href="javascript:void((function()%7Bvar%20e=document.createElement('script');e.setAttribute('type','text/javascript');e.setAttribute('charset','UTF-8');e.setAttribute('src','https://assets.pinterest.com/js/pinmarklet.js?r='+Math.random()*99999999);document.body.appendChild(e)%7D)());"><img src="https://www.1001freefonts.com/themes/blue/images/share_icons/simple/pinterest.png" alt="Pinterest" /></a>
+
+        <!-- Twitter -->
+        <a href="#" onclick="showWindowUrl('https://twitter.com/share?url=https://www.1001freefonts.com/komika-hands.font&amp;text=Komika+Hands&amp;hashtags=1001freefonts'); return false;"><img src="https://www.1001freefonts.com/themes/blue/images/share_icons/simple/twitter.png" alt="Twitter" /></a>
+
+        <!-- Instagram -->
+        <a href="https://www.instagram.com/1001freefonts/" target="_blank"><img src="https://www.1001freefonts.com/themes/blue/images/share_icons/simple/instagram.png" alt="Instagram" /></a>
+
+        <!-- Digg -->
+        <a href="#" onclick="showWindowUrl('http://www.digg.com/submit?url=https://www.1001freefonts.com/komika-hands.font'); return false;"><img src="https://www.1001freefonts.com/themes/blue/images/share_icons/simple/diggit.png" alt="Digg" /></a>
+
+        <!-- Reddit -->
+        <a href="#" onclick="showWindowUrl('http://reddit.com/submit?url=https://www.1001freefonts.com/komika-hands.font&amp;title=Komika+Hands'); return false;"><img src="https://www.1001freefonts.com/themes/blue/images/share_icons/simple/reddit.png" alt="Reddit" /></a>
+
+        <!-- LinkedIn -->
+        <a href="#" onclick="showWindowUrl('http://www.linkedin.com/shareArticle?mini=true&amp;url=https://www.1001freefonts.com/komika-hands.font'); return false;"><img src="https://www.1001freefonts.com/themes/blue/images/share_icons/simple/linkedin.png" alt="LinkedIn" /></a>
+
+        <!-- StumbleUpon-->
+        <a href="#" onclick="showWindowUrl('http://www.stumbleupon.com/submit?url=https://www.1001freefonts.com/komika-hands.font&amp;title=Komika+Hands'); return false;"><img src="https://www.1001freefonts.com/themes/blue/images/share_icons/simple/stumbleupon.png" alt="StumbleUpon" /></a>
+
+        <!-- Print -->
+        <a href="javascript:;" onclick="window.print()"><img src="https://www.1001freefonts.com/themes/blue/images/share_icons/simple/print.png" alt="Print" /></a>
+
+        <!-- Email -->
+        <a href="/cdn-cgi/l/email-protection#b18ee2c4d3dbd4d2c58cfadedcd8dad09af9d0dfd5c297d0dcc18af3ded5c88cf8948381c2d0c6948381c5d9d8c2948381d0dfd5948381c5d9dec4d6d9c5948381ded7948381c8dec490948381d9c5c5c1c28b9e9ec6c6c69f80818180d7c3d4d4d7dedfc5c29fd2dedc9edadedcd8dad09cd9d0dfd5c29fd7dedfc5"><img src="https://www.1001freefonts.com/themes/blue/images/share_icons/simple/email.png" alt="Email" /></a>
+    </div>
+</div>
+
+<div class='clear'><!-- --></div>
+</div>
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src='https://www.google.com/recaptcha/api.js'></script>
+
+</td>
+    </tr>
+</table>
+<div class="clear"><!-- --></div>
+
+    <div class="categoryBarInner" style="margin-top: 14px;"><span style="font-weight: bold;"><font size="3"><div align="center"><a href="https://www.ultimatefontdownload.com/" target="_blank">Download 10,000 fonts with one click - Licensed for commercial use - Instant and unlimited access - Click Here</a></div></font></span></div>    <div class="clear"><!-- --></div>
+
+<div class="loginPremiumWrapper loginPremiumWrapperFullWidth">
+    <!-- Premium Section (Main) -->
+    
+<div class="loginPremiumMain">
+    <div class="premiumSection">
+        <h3>Premium Membership</h3>
+        <ul class="premiumBenefits">
+            <li>
+                <i data-feather="check" class="premiumCheckIcon"></i>
+                <span>Download over 140,000 fonts without ever seeing ads. Pages load up to 75% faster without ads</span>
+            </li>
+            <li>
+                <i data-feather="check" class="premiumCheckIcon"></i>
+                <span>Membership includes 10,000 fonts package, fully licensed for commercial use. A $19.95 value. <u><a href="https://www.ultimatefontdownload.com" target="_blank">View Fonts</a></u></span>
+            </li>
+            <li>
+                <i data-feather="check" class="premiumCheckIcon"></i>
+                <span>Save time and download all your favorite fonts with one click. Over 1,001 new fonts added each month</span>
+            </li>
+        </ul>
+
+        <div class="premiumPricing">
+            <span class="priceValue">$9.95</span>
+            <span class="priceLabel">per year</span>
+                            
+                                    <a href="https://buy.stripe.com/dRmaEWfWQ95Q57f8OleUU00" class="premiumCta" id="joinNowButton" rel="noopener" >
+                        Join Now                    </a>
+                    <p class="premiumBillingNote">
+                        Secure checkout via Stripe. Subscription billed annually. Cancel anytime.                    </p>
+                                    </div>
+    </div>
+</div></div>
+
+</div>
+</div>
+</div>
+
+<div class="clear"><!-- --></div>
+
+</div>
+</div>
+
+<!-- footer ads -->
+            <div class="footerPageAds">
+            <!-- Tag ID: 1001fonts_728x90_970x90_970x250_320x50_BTF -->
+<div align="center" data-freestar-ad="__320x50 __970x250" id="1001fonts_728x90_970x90_970x250_320x50_BTF">
+  <script data-cfasync="false" type="text/javascript">
+    freestar.config.enabled_slots.push({ placementName: "1001fonts_728x90_970x90_970x250_320x50_BTF", slotId: "1001fonts_728x90_970x90_970x250_320x50_BTF" });
+  </script>
+</div>        </div>
+    
+<div class="footer">
+	 <a href="/privacy.php">Privacy Policy</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="/alphabetic.php">Alphabetic</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="/categories.php">Categories</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://mfscripts.com" target="_blank">MFScripts</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://yetishare.com" target="_blank">Yetishare</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://www.fontriver.com" target="_blank">Font
+        River</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://www.thefreesite.com" target="_blank">The Free Site</a>&nbsp;&nbsp;|&nbsp;&nbsp;<a href="https://fonts.google.com/" target="_blank">Google Fonts</a><br/>
+    <br/>
+
+            <div class="headerMultiLanguageSwitcherWrapper">
+            <div class="headerMultiLanguageSwitcher">
+                <a href="https://www.1001freefonts.com/komika-hands.font" class="flagSelected"><img src="https://www.1001freefonts.com/themes/blue/images/flags/en.png" width="16" height="11" title="Switch site language to English (en)"/><span>English (en)</span>&nbsp;</a><a href="https://www.1001freefonts.com/es/komika-hands.font" class="flagNoneSelected"><img src="https://www.1001freefonts.com/themes/blue/images/flags/es.png" width="16" height="11" title="Switch site language to Español (es)"/><span>Español (es)</span>&nbsp;</a><a href="https://www.1001freefonts.com/fr/komika-hands.font" class="flagNoneSelected"><img src="https://www.1001freefonts.com/themes/blue/images/flags/fr.png" width="16" height="11" title="Switch site language to Français (fr)"/><span>Français (fr)</span>&nbsp;</a><a href="https://www.1001freefonts.com/de/komika-hands.font" class="flagNoneSelected"><img src="https://www.1001freefonts.com/themes/blue/images/flags/de.png" width="16" height="11" title="Switch site language to Deutsch (de)"/><span>Deutsch (de)</span>&nbsp;</a><a href="https://www.1001freefonts.com/pt/komika-hands.font" class="flagNoneSelected"><img src="https://www.1001freefonts.com/themes/blue/images/flags/pt.png" width="16" height="11" title="Switch site language to Português (pt)"/><span>Português (pt)</span>&nbsp;</a><a href="https://www.1001freefonts.com/it/komika-hands.font" class="flagNoneSelected"><img src="https://www.1001freefonts.com/themes/blue/images/flags/it.png" width="16" height="11" title="Switch site language to Italiano (it)"/><span>Italiano (it)</span>&nbsp;</a>            </div>
+        </div><br/><br/>
+            
+    <span style="font-weight: bold;">
+        <div class="socialButton">
+            <a href="https://www.facebook.com/1001FreeFonts/" target="_blank">
+                <img src="https://www.1001freefonts.com/themes/blue/images/icons/facebook.png" alt="Facebook"/>
+            </a>
+            
+            <a href="https://x.com/1001freefonts" target="_blank">
+                <img src="https://www.1001freefonts.com/themes/blue/images/icons/x.png" alt="Twitter"/>
+            </a>
+            
+            <a href="https://www.instagram.com/1001freefonts/  " target="_blank">
+                <img src="https://www.1001freefonts.com/themes/blue/images/icons/instagram.png" alt="Instagram"/>
+            </a>
+        </div><br/>
+
+        Stats:</span>&nbsp;&nbsp;2862 visitors online<br/><button id="pmLink">Privacy Manager</button>
+    </span>
+    
+    
+        </div>
+</div></div>
+<script src="https://www.1001freefonts.com/themes/blue/javascript/global-min.js?r=6"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://www.1001freefonts.com/themes/blue/javascript/jquery.multi-select.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.1001freefonts.com/"},{"@type":"ListItem","position":2,"name":"Komika Hands Font","item":"https://www.1001freefonts.com/komika-hands.font"}],"name":"Main Site Breadcrumbs (JSON)"}</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"512970377ca64b65b8994eb7a7aea79b","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9c9581b8c85942fc',t:'MTc3MDMyNzAwMw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
+

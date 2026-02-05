@@ -30,6 +30,13 @@ juce_add_plugin(Nessy
     COPY_PLUGIN_AFTER_BUILD TRUE
 )
 
+# Embedded fonts as BinaryData
+juce_add_binary_data(NessyFonts
+    SOURCES
+        src/resources/fonts/Inter-Regular.ttf
+        src/resources/fonts/Inter-Bold.ttf
+)
+
 # Source files
 target_sources(Nessy
     PRIVATE
@@ -61,6 +68,7 @@ target_include_directories(Nessy
 # JUCE modules
 target_link_libraries(Nessy
     PRIVATE
+        NessyFonts
         juce::juce_audio_utils
         juce::juce_audio_processors
         juce::juce_dsp
