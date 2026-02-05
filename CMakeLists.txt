@@ -35,12 +35,26 @@ target_sources(Nessy
     PRIVATE
         src/PluginProcessor.cpp
         src/PluginEditor.cpp
+        
+        # NessyAPU wrapper
+        src/apu/NessyAPU.cpp
+        
+        # Blip_Buffer (LGPL - bandlimited synthesis)
+        src/apu/blip_buffer/Blip_Buffer.cpp
+        
+        # NSFPlay cores (GPL)
+        src/apu/nsfplay/xgm/devices/Sound/nes_apu.cpp
+        src/apu/nsfplay/xgm/devices/Sound/nes_dmc.cpp
 )
 
 # Include directories
 target_include_directories(Nessy
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/apu
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/apu/blip_buffer
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/apu/nsfplay
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/apu/utils
 )
 
 # JUCE modules

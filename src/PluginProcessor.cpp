@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "apu/NessyAPU.h"
 
 static juce::AudioProcessorValueTreeState::ParameterLayout
 createParameterLayout() {
@@ -42,7 +43,8 @@ NessyAudioProcessor::NessyAudioProcessor()
     : AudioProcessor(BusesProperties().withOutput(
           "Output", juce::AudioChannelSet::stereo(), true)),
       parameters(*this, nullptr, juce::Identifier("NessyParameters"),
-                 createParameterLayout()) {}
+                 createParameterLayout()),
+      apu(std::make_unique<NessyAPU>()) {}
 
 NessyAudioProcessor::~NessyAudioProcessor() {}
 
@@ -65,10 +67,25 @@ void NessyAudioProcessor::prepareToPlay(double sampleRate,
                                         int /*samplesPerBlock*/) {
   currentSampleRate = sampleRate;
 
-  // TODO: Initialize APU emulation with sample rate
+  // Initialize APU with host sample rate
+  apu->initialize(sampleRate);
+
+  // Apply initial channel settings from parameters
+  apu->setChannelEnabled(
+      NessyAPU::PULSE1,
+      parameters.getRawParameterValue("pulse1Enable")->load() > 0.5f);
+  apu->setChannelEnabled(
+      NessyAPU::PULSE2,
+      parameters.getRawParameterValue("pulse2Enable")->load() > 0.5f);
+  apu->setChannelEnabled(
+      NessyAPU::TRIANGLE,
+      parameters.getRawParameterValue("triangleEnable")->load() > 0.5f);
+  apu->setChannelEnabled(
+      NessyAPU::NOISE,
+      parameters.getRawParameterValue("noiseEnable")->load() > 0.5f);
 }
 
-void NessyAudioProcessor::releaseResources() {}
+void NessyAudioProcessor::releaseResources() { apu->reset(); }
 
 bool NessyAudioProcessor::isBusesLayoutSupported(
     const BusesLayout &layouts) const {
@@ -81,29 +98,49 @@ void NessyAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
                                        juce::MidiBuffer &midiMessages) {
   juce::ScopedNoDenormals noDenormals;
 
-  auto totalNumOutputChannels = getTotalNumOutputChannels();
+  auto numSamples = buffer.getNumSamples();
+  auto *leftChannel = buffer.getWritePointer(0);
+  auto *rightChannel = buffer.getWritePointer(1);
 
-  // Clear output buffer
-  for (auto i = 0; i < totalNumOutputChannels; ++i)
-    buffer.clear(i, 0, buffer.getNumSamples());
+  // Get master volume
+  float masterVolume = parameters.getRawParameterValue("masterVolume")->load();
+
+  // Update duty cycles from parameters
+  int pulse1Duty =
+      static_cast<int>(parameters.getRawParameterValue("pulse1Duty")->load());
+  int pulse2Duty =
+      static_cast<int>(parameters.getRawParameterValue("pulse2Duty")->load());
+  apu->setPulseDuty(0, static_cast<NessyAPU::DutyCycle>(pulse1Duty));
+  apu->setPulseDuty(1, static_cast<NessyAPU::DutyCycle>(pulse2Duty));
+
+  // Update noise mode
+  bool noiseMode = parameters.getRawParameterValue("noiseMode")->load() > 0.5f;
+  apu->setNoiseMode(noiseMode);
 
   // Process MIDI messages
+  // For simplicity, route all notes to Pulse 1 (mono mode for now)
   for (const auto metadata : midiMessages) {
     auto message = metadata.getMessage();
 
     if (message.isNoteOn()) {
-      // TODO: Trigger note on APU
       int noteNumber = message.getNoteNumber();
       float velocity = message.getFloatVelocity();
-      (void)noteNumber;
-      (void)velocity;
+
+      // Route to Pulse 1 for now (will implement proper voice allocation later)
+      apu->noteOn(NessyAPU::PULSE1, noteNumber, velocity);
     } else if (message.isNoteOff()) {
-      // TODO: Trigger note off on APU
+      apu->noteOff(NessyAPU::PULSE1);
     }
   }
 
-  // TODO: Generate samples from APU emulation
-  // For now, silence
+  // Generate audio from APU
+  apu->process(leftChannel, rightChannel, numSamples);
+
+  // Apply master volume
+  for (int i = 0; i < numSamples; ++i) {
+    leftChannel[i] *= masterVolume;
+    rightChannel[i] *= masterVolume;
+  }
 }
 
 juce::AudioProcessorEditor *NessyAudioProcessor::createEditor() {
