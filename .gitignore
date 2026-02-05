@@ -1,0 +1,22 @@
+# Build directories
+build/
+out/
+
+# IDE
+.vs/
+.vscode/
+*.user
+CMakeUserPresets.json
+
+# Dependencies (downloaded by CPM)
+_deps/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# JUCE
+JuceLibraryCode/
+
+# Reference source (not part of our build)
+dn-famitracker-source/

@@ -1,0 +1,9 @@
+# Exclude build artifacts from language server indexing
+CompileFlags:
+  Add: []
+
+If:
+  PathMatch: [build/.*, _deps/.*, dn-famitracker-source/.*]
+Then:
+  Index:
+    Background: Skip
