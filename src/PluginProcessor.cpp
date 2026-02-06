@@ -40,7 +40,7 @@ createParameterLayout() {
   // Voice allocation mode
   layout.add(std::make_unique<juce::AudioParameterChoice>(
       juce::ParameterID("voiceMode", 1), "Voice Mode",
-      juce::StringArray{"Round-Robin", "Pitch-Split"},
+      juce::StringArray{"Round-Robin", "Pitch-Split", "Unison"},
       0)); // Default to Round-Robin
 
   // Pitch split point (MIDI note 36-84, default 60 = C4)

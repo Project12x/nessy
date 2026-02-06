@@ -10,6 +10,36 @@ void VoiceAllocator::noteOn(int midiChannel, int noteNumber, float velocity) {
   if (!m_apu)
     return;
 
+  // UNISON mode: trigger multiple channels at once
+  if (m_mode == Mode::UNISON) {
+    // Always use P1 + P2 for unison (both pulses)
+    int unisonChannels[] = {NessyAPU::PULSE1, NessyAPU::PULSE2};
+    int numUnison = 2;
+
+    // With VRC6 enabled, add VRC6 pulses for 4-voice unison
+    int unisonWithVRC6[] = {NessyAPU::PULSE1, NessyAPU::PULSE2,
+                            NessyAPU::VRC6_PULSE1, NessyAPU::VRC6_PULSE2};
+    if (m_vrc6Enabled) {
+      numUnison = 4;
+    }
+
+    int *channels = m_vrc6Enabled ? unisonWithVRC6 : unisonChannels;
+
+    for (int i = 0; i < numUnison; ++i) {
+      int ch = channels[i];
+      // Turn off existing note
+      if (m_voices[ch].noteNumber >= 0) {
+        m_apu->noteOff(ch);
+      }
+      m_voices[ch].noteNumber = noteNumber;
+      m_voices[ch].velocity = velocity;
+      m_voices[ch].timestamp = ++m_timestamp;
+      m_apu->noteOn(ch, noteNumber, velocity);
+    }
+    return;
+  }
+
+  // Non-unison modes: single channel allocation
   int nesChannel = -1;
 
   switch (m_mode) {
@@ -36,6 +66,10 @@ void VoiceAllocator::noteOn(int midiChannel, int noteNumber, float velocity) {
     nesChannel = findChannelForPitch(noteNumber);
     break;
   }
+
+  case Mode::UNISON:
+    // Handled above
+    break;
   }
 
   if (nesChannel >= 0 && nesChannel < NUM_TOTAL_VOICES) {

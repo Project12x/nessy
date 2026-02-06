@@ -13,7 +13,8 @@ public:
   // Allocation modes
   enum class Mode {
     ROUND_ROBIN, // Cycle through channels in order
-    PITCH_SPLIT  // Low notes → Triangle/Saw, High notes → Pulses
+    PITCH_SPLIT, // Low notes → Triangle/Saw, High notes → Pulses
+    UNISON       // Stack multiple channels on same note (fatter sound)
   };
 
   VoiceAllocator();

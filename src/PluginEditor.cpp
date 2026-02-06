@@ -115,6 +115,7 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
   // Voice mode selector
   voiceModeBox.addItem("Round-Robin", 1);
   voiceModeBox.addItem("Pitch-Split", 2);
+  voiceModeBox.addItem("Unison", 3);
   voiceModeBox.setColour(juce::ComboBox::backgroundColourId, kHeaderColor);
   voiceModeBox.setColour(juce::ComboBox::textColourId, kTextColor);
   voiceModeBox.setColour(juce::ComboBox::outlineColourId,
