@@ -4,10 +4,6 @@
 #include "VoiceAllocator.h"
 #include "NessyAPU.h"
 
-// Static array definitions
-constexpr int VoiceAllocator::MELODIC_CHANNELS_BASE[];
-constexpr int VoiceAllocator::MELODIC_CHANNELS_VRC6[];
-
 VoiceAllocator::VoiceAllocator() { allNotesOff(); }
 
 void VoiceAllocator::noteOn(int midiChannel, int noteNumber, float velocity) {
@@ -128,15 +124,16 @@ int VoiceAllocator::getChannelForNote(int noteNumber) const {
 }
 
 int VoiceAllocator::findFreeChannel() const {
-  // Check base melodic channels first
-  for (int ch : MELODIC_CHANNELS_BASE) {
-    if (m_voices[ch].noteNumber < 0)
-      return ch;
+  // Check base melodic channels first (0, 1, 2 = P1, P2, Tri)
+  for (int i = 0; i < NUM_BASE_MELODIC; ++i) {
+    if (m_voices[i].noteNumber < 0)
+      return i;
   }
 
-  // Check VRC6 channels if enabled and in POLY_7 mode
+  // Check VRC6 channels if enabled and in POLY_7 mode (5, 6, 7)
   if (m_vrc6Enabled && m_mode == Mode::POLY_7) {
-    for (int ch : MELODIC_CHANNELS_VRC6) {
+    for (int i = 0; i < NUM_VRC6_MELODIC; ++i) {
+      int ch = 5 + i; // VRC6_PULSE1=5, VRC6_PULSE2=6, VRC6_SAW=7
       if (m_voices[ch].noteNumber < 0)
         return ch;
     }
@@ -149,17 +146,18 @@ int VoiceAllocator::findOldestChannel() const {
   int oldest = 0;
   uint32_t oldestTime = m_voices[0].timestamp;
 
-  // Check base melodic channels
-  for (int ch : MELODIC_CHANNELS_BASE) {
-    if (m_voices[ch].timestamp < oldestTime) {
-      oldest = ch;
-      oldestTime = m_voices[ch].timestamp;
+  // Check base melodic channels (0, 1, 2)
+  for (int i = 0; i < NUM_BASE_MELODIC; ++i) {
+    if (m_voices[i].timestamp < oldestTime) {
+      oldest = i;
+      oldestTime = m_voices[i].timestamp;
     }
   }
 
-  // Check VRC6 channels if enabled and in POLY_7 mode
+  // Check VRC6 channels if enabled and in POLY_7 mode (5, 6, 7)
   if (m_vrc6Enabled && m_mode == Mode::POLY_7) {
-    for (int ch : MELODIC_CHANNELS_VRC6) {
+    for (int i = 0; i < NUM_VRC6_MELODIC; ++i) {
+      int ch = 5 + i;
       if (m_voices[ch].timestamp < oldestTime) {
         oldest = ch;
         oldestTime = m_voices[ch].timestamp;
