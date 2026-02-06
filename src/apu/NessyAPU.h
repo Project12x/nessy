@@ -1,6 +1,6 @@
 #pragma once
 
-// NessyAPU: Simplified NES 2A03 APU wrapper for VST use
+// NessyAPU: NES APU wrapper for VST use with expansion chip support
 // GPL-3.0 - Uses NSFPlay cores from Dn-FamiTracker
 
 #include <cstdint>
@@ -10,20 +10,25 @@
 namespace xgm {
 class NES_APU;
 class NES_DMC;
+class NES_VRC6;
 } // namespace xgm
 class Blip_Buffer;
 template <int quality> class Blip_Synth;
 
 class NessyAPU {
 public:
-  // NES APU channel indices
+  // Base NES APU channel indices (0-4)
   enum Channel {
     PULSE1 = 0,
     PULSE2 = 1,
     TRIANGLE = 2,
     NOISE = 3,
     DMC = 4,
-    NUM_CHANNELS
+    // VRC6 expansion channels (5-7)
+    VRC6_PULSE1 = 5,
+    VRC6_PULSE2 = 6,
+    VRC6_SAW = 7,
+    NUM_CHANNELS = 8
   };
 
   // Duty cycle options for pulse channels
@@ -44,7 +49,6 @@ public:
   void reset();
 
   // Generate audio samples
-  // Returns number of samples generated
   int process(float *leftOutput, float *rightOutput, int numSamples);
 
   // MIDI note control
@@ -53,9 +57,12 @@ public:
 
   // Channel configuration
   void setChannelEnabled(int channel, bool enabled);
-  void setPulseDuty(int pulseChannel, DutyCycle duty); // 0=Pulse1, 1=Pulse2
-  void setNoiseMode(
-      bool shortMode); // false=long (32767 steps), true=short (93 steps)
+  void setPulseDuty(int pulseChannel, DutyCycle duty);
+  void setNoiseMode(bool shortMode);
+
+  // VRC6-specific configuration
+  void setVRC6Enabled(bool enabled);
+  void setVRC6PulseDuty(int pulseChannel, int duty); // 0-7 (8 levels)
 
   // Get channel frequency for visualization
   double getChannelFrequency(int channel) const;
@@ -64,15 +71,13 @@ public:
   void writeRegister(uint16_t address, uint8_t value);
 
 private:
-  // Convert MIDI note to NES period value
   uint16_t midiToPeriod(int midiNote, int channel) const;
-
-  // Clock the APU and mix output
   void clockAPU(int cpuClocks);
 
   // NSFPlay cores
-  std::unique_ptr<xgm::NES_APU> m_apu1; // Pulse channels
-  std::unique_ptr<xgm::NES_DMC> m_apu2; // Triangle, Noise, DMC
+  std::unique_ptr<xgm::NES_APU> m_apu1;  // Pulse channels
+  std::unique_ptr<xgm::NES_DMC> m_apu2;  // Triangle, Noise, DMC
+  std::unique_ptr<xgm::NES_VRC6> m_vrc6; // VRC6 expansion
 
   // Blip_Buffer for bandlimited synthesis
   std::unique_ptr<Blip_Buffer> m_blipBuffer;
@@ -84,11 +89,14 @@ private:
   double m_clockAccumulator = 0.0;
 
   // Channel state
-  bool m_channelEnabled[NUM_CHANNELS] = {true, true, true, true, false};
-  int m_currentNote[NUM_CHANNELS] = {-1, -1, -1, -1, -1};
-  float m_velocity[NUM_CHANNELS] = {0, 0, 0, 0, 0};
+  bool m_channelEnabled[NUM_CHANNELS] = {true,  true,  true,  true,
+                                         false, false, false, false};
+  int m_currentNote[NUM_CHANNELS] = {-1, -1, -1, -1, -1, -1, -1, -1};
+  float m_velocity[NUM_CHANNELS] = {0, 0, 0, 0, 0, 0, 0, 0};
   DutyCycle m_pulseDuty[2] = {DUTY_50, DUTY_50};
+  int m_vrc6PulseDuty[2] = {4, 4}; // Default 50% (8 levels: 0-7)
   bool m_noiseShortMode = false;
+  bool m_vrc6Enabled = false;
 
   // Temporary buffer for Blip_Buffer output
   static constexpr int TEMP_BUFFER_SIZE = 4096;
