@@ -43,6 +43,24 @@ createParameterLayout() {
       juce::StringArray{"Mono", "Poly 4", "Split"},
       1)); // Default to Poly 4
 
+  // VRC6 Expansion
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID("vrc6Enable", 1), "VRC6 Enable", false));
+
+  // VRC6 Pulse 1 duty (0-7: 8 levels)
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID("vrc6Pulse1Duty", 1), "VRC6 Pulse 1 Duty",
+      juce::StringArray{"6.25%", "12.5%", "18.75%", "25%", "31.25%", "37.5%",
+                        "43.75%", "50%"},
+      7)); // Default to 50%
+
+  // VRC6 Pulse 2 duty
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID("vrc6Pulse2Duty", 1), "VRC6 Pulse 2 Duty",
+      juce::StringArray{"6.25%", "12.5%", "18.75%", "25%", "31.25%", "37.5%",
+                        "43.75%", "50%"},
+      7));
+
   return layout;
 }
 
@@ -93,6 +111,10 @@ void NessyAudioProcessor::prepareToPlay(double sampleRate,
   apu->setChannelEnabled(
       NessyAPU::NOISE,
       parameters.getRawParameterValue("noiseEnable")->load() > 0.5f);
+
+  // VRC6 expansion
+  apu->setVRC6Enabled(parameters.getRawParameterValue("vrc6Enable")->load() >
+                      0.5f);
 }
 
 void NessyAudioProcessor::releaseResources() {

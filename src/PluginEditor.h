@@ -54,5 +54,17 @@ private:
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
       noiseModeAttachment;
 
+  // VRC6 Expansion controls
+  juce::ToggleButton vrc6EnableToggle{"VRC6"};
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
+      vrc6EnableAttachment;
+
+  juce::ComboBox vrc6Pulse1DutyBox;
+  juce::ComboBox vrc6Pulse2DutyBox;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
+      vrc6Pulse1DutyAttachment;
+  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
+      vrc6Pulse2DutyAttachment;
+
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NessyAudioProcessorEditor)
 };

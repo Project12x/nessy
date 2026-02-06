@@ -132,6 +132,40 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
       std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
           apvts, "noiseMode", noiseModeToggle);
 
+  // VRC6 Expansion controls
+  vrc6EnableToggle.setColour(juce::ToggleButton::tickColourId,
+                             juce::Colour(0xff9b59b6)); // Purple
+  addAndMakeVisible(vrc6EnableToggle);
+  vrc6EnableAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          apvts, "vrc6Enable", vrc6EnableToggle);
+
+  // VRC6 duty boxes (8 levels)
+  auto setupVrc6DutyBox = [this](juce::ComboBox &box) {
+    box.addItem("6.25%", 1);
+    box.addItem("12.5%", 2);
+    box.addItem("18.75%", 3);
+    box.addItem("25%", 4);
+    box.addItem("31.25%", 5);
+    box.addItem("37.5%", 6);
+    box.addItem("43.75%", 7);
+    box.addItem("50%", 8);
+    box.setColour(juce::ComboBox::backgroundColourId, kHeaderColor);
+    box.setColour(juce::ComboBox::textColourId, kTextColor);
+    box.setColour(juce::ComboBox::outlineColourId,
+                  juce::Colour(0xff9b59b6).withAlpha(0.5f));
+    addAndMakeVisible(box);
+  };
+  setupVrc6DutyBox(vrc6Pulse1DutyBox);
+  setupVrc6DutyBox(vrc6Pulse2DutyBox);
+
+  vrc6Pulse1DutyAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+          apvts, "vrc6Pulse1Duty", vrc6Pulse1DutyBox);
+  vrc6Pulse2DutyAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+          apvts, "vrc6Pulse2Duty", vrc6Pulse2DutyBox);
+
   // Keyboard styling
   keyboard.setKeyWidth(35.0f);
   keyboard.setColour(juce::MidiKeyboardComponent::whiteNoteColourId,
@@ -146,7 +180,7 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
                      kPrimaryColor.withAlpha(0.6f));
   addAndMakeVisible(keyboard);
 
-  setSize(820, 520);
+  setSize(900, 560); // Wider for VRC6 section
 }
 
 NessyAudioProcessorEditor::~NessyAudioProcessorEditor() {}
@@ -228,7 +262,8 @@ void NessyAudioProcessorEditor::resized() {
 
   // Channel section
   auto channelArea = bounds.reduced(15).withTrimmedTop(50);
-  int channelWidth = (channelArea.getWidth() - 100) / 4;
+  int channelWidth =
+      (channelArea.getWidth() - 180) / 5; // 5 columns for base+VRC6
 
   // Volume knob on left
   masterVolumeSlider.setBounds(channelArea.getX(), channelArea.getY() + 20, 80,
@@ -236,7 +271,7 @@ void NessyAudioProcessorEditor::resized() {
 
   auto channelX = channelArea.getX() + 100;
 
-  // Channel toggles and controls
+  // Base APU channel toggles and controls
   juce::ToggleButton *toggles[] = {&pulse1Toggle, &pulse2Toggle,
                                    &triangleToggle, &noiseToggle};
   juce::ComboBox *dutyBoxes[] = {&pulse1DutyBox, &pulse2DutyBox, nullptr,
@@ -261,4 +296,15 @@ void NessyAudioProcessorEditor::resized() {
                                 channelRect.getWidth() - 20, 24);
     }
   }
+
+  // VRC6 Expansion section (purple separator)
+  auto vrc6X = channelX + 4 * channelWidth + 10;
+  auto vrc6Width = getWidth() - vrc6X - 15;
+
+  // VRC6 enable toggle
+  vrc6EnableToggle.setBounds(vrc6X, channelArea.getY() + 30, 80, 24);
+
+  // VRC6 duty boxes
+  vrc6Pulse1DutyBox.setBounds(vrc6X, channelArea.getY() + 60, 75, 24);
+  vrc6Pulse2DutyBox.setBounds(vrc6X + 80, channelArea.getY() + 60, 75, 24);
 }
