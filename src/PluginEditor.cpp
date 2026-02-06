@@ -27,12 +27,22 @@ juce::Typeface::Ptr getInterBold() {
   return typeface;
 }
 
+juce::Typeface::Ptr getPressStart() {
+  static auto typeface = loadTypeface(BinaryData::PressStart2PRegular_ttf,
+                                      BinaryData::PressStart2PRegular_ttfSize);
+  return typeface;
+}
+
 juce::Font getBodyFont(float height) {
   return juce::Font(juce::FontOptions(getInterRegular()).withHeight(height));
 }
 
 juce::Font getTitleFont(float height) {
   return juce::Font(juce::FontOptions(getInterBold()).withHeight(height));
+}
+
+juce::Font getPixelFont(float height) {
+  return juce::Font(juce::FontOptions(getPressStart()).withHeight(height));
 }
 } // namespace
 
@@ -148,9 +158,10 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
   g.setColour(kPrimaryColor);
   g.fillRect(0, 0, getWidth(), 50);
 
+  // Title with pixel font
   g.setColour(kTextColor);
-  g.setFont(getTitleFont(28.0f));
-  g.drawText("NESSY", 15, 8, 150, 34, juce::Justification::centredLeft);
+  g.setFont(getPixelFont(20.0f));
+  g.drawText("NESSY", 15, 12, 150, 26, juce::Justification::centredLeft);
 
   g.setFont(getBodyFont(11.0f));
   g.setColour(kTextColor.withAlpha(0.7f));

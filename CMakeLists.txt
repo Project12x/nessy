@@ -35,6 +35,7 @@ juce_add_binary_data(NessyFonts
     SOURCES
         src/resources/fonts/Inter-Regular.ttf
         src/resources/fonts/Inter-Bold.ttf
+        src/resources/fonts/PressStart2P-Regular.ttf
 )
 
 # Source files
@@ -53,6 +54,7 @@ target_sources(Nessy
         # NSFPlay cores (GPL)
         src/apu/nsfplay/xgm/devices/Sound/nes_apu.cpp
         src/apu/nsfplay/xgm/devices/Sound/nes_dmc.cpp
+        src/apu/nsfplay/xgm/devices/Sound/nes_vrc6.cpp
 )
 
 # Include directories
