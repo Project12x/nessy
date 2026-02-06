@@ -124,6 +124,18 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
       std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
           apvts, "voiceMode", voiceModeBox);
 
+  // Split point slider
+  splitPointSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+  splitPointSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 40, 20);
+  splitPointSlider.setColour(juce::Slider::thumbColourId, kSecondaryColor);
+  splitPointSlider.setColour(juce::Slider::trackColourId, kHeaderColor);
+  addAndMakeVisible(splitPointSlider);
+  splitPointLabel.setColour(juce::Label::textColourId, kTextColor);
+  addAndMakeVisible(splitPointLabel);
+  splitPointAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+          apvts, "splitPoint", splitPointSlider);
+
   // Noise mode toggle
   noiseModeToggle.setColour(juce::ToggleButton::tickColourId, kOrangeColor);
   addAndMakeVisible(noiseModeToggle);
@@ -258,6 +270,10 @@ void NessyAudioProcessorEditor::resized() {
 
   // Header area controls
   voiceModeBox.setBounds(getWidth() - 110, 30, 100, 22);
+
+  // Split point slider (below voice mode)
+  splitPointLabel.setBounds(getWidth() - 180, 55, 40, 20);
+  splitPointSlider.setBounds(getWidth() - 140, 55, 130, 20);
 
   // Channel section
   auto channelArea = bounds.reduced(15).withTrimmedTop(50);

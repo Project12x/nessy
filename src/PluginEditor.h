@@ -49,6 +49,12 @@ private:
   std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
       voiceModeAttachment;
 
+  // Split point slider (for Pitch-Split mode)
+  juce::Slider splitPointSlider;
+  juce::Label splitPointLabel{"", "Split"};
+  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
+      splitPointAttachment;
+
   // Noise mode toggle
   juce::ToggleButton noiseModeToggle{"Short"};
   std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
