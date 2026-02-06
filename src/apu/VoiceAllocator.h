@@ -16,8 +16,8 @@ public:
     POLY_4, // Round-robin: P1 → P2 → Tri (3-voice melodic poly)
     POLY_7, // With VRC6: P1 → P2 → Tri → VRC6_P1 → VRC6_P2 → VRC6_SAW (6-voice
             // melodic poly)
-    SPLIT // MIDI channel routing (Ch1=P1, Ch2=P2, Ch3=Tri, Ch10=Noise,
-          // Ch5/6/7=VRC6)
+    SPLIT   // MIDI channel routing (Ch1=P1, Ch2=P2, Ch3=Tri, Ch10=Noise,
+            // Ch5/6/7=VRC6)
   };
 
   VoiceAllocator();
@@ -51,11 +51,6 @@ private:
   static constexpr int NUM_TOTAL_VOICES =
       8; // All channels including Noise and DMC
   static constexpr int NOISE_CHANNEL = 3;
-
-  // Melodic channel indices for allocation
-  static constexpr int MELODIC_CHANNELS_BASE[] = {0, 1, 2}; // P1, P2, Tri
-  static constexpr int MELODIC_CHANNELS_VRC6[] = {
-      5, 6, 7}; // VRC6_P1, VRC6_P2, VRC6_SAW
 
   int findFreeChannel() const;
   int findOldestChannel() const;

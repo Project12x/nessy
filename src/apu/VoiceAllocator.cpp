@@ -47,7 +47,8 @@ void VoiceAllocator::noteOn(int midiChannel, int noteNumber, float velocity) {
       }
     }
     if (nesChannel < 0 && m_vrc6Enabled) {
-      for (int ch : MELODIC_CHANNELS_VRC6) {
+      for (int i = 0; i < NUM_VRC6_MELODIC; ++i) {
+        int ch = 5 + i; // VRC6_PULSE1=5, VRC6_PULSE2=6, VRC6_SAW=7
         if (m_voices[ch].noteNumber == noteNumber) {
           nesChannel = ch;
           break;
