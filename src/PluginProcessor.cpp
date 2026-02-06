@@ -40,8 +40,12 @@ createParameterLayout() {
   // Voice allocation mode
   layout.add(std::make_unique<juce::AudioParameterChoice>(
       juce::ParameterID("voiceMode", 1), "Voice Mode",
-      juce::StringArray{"Mono", "Poly 3", "Poly 6", "Split"},
-      1)); // Default to Poly 3
+      juce::StringArray{"Round-Robin", "Pitch-Split"},
+      0)); // Default to Round-Robin
+
+  // Pitch split point (MIDI note 36-84, default 60 = C4)
+  layout.add(std::make_unique<juce::AudioParameterInt>(
+      juce::ParameterID("splitPoint", 1), "Split Point", 36, 84, 60));
 
   // VRC6 Expansion
   layout.add(std::make_unique<juce::AudioParameterBool>(
@@ -156,6 +160,11 @@ void NessyAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   int voiceMode =
       static_cast<int>(parameters.getRawParameterValue("voiceMode")->load());
   voiceAllocator->setMode(static_cast<VoiceAllocator::Mode>(voiceMode));
+
+  // Update pitch split point
+  int splitPoint =
+      static_cast<int>(parameters.getRawParameterValue("splitPoint")->load());
+  voiceAllocator->setSplitPoint(splitPoint);
 
   // Sync VRC6 enable state to voice allocator
   bool vrc6Enabled =

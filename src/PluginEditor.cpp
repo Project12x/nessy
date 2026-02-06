@@ -113,10 +113,8 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
           apvts, "pulse2Duty", pulse2DutyBox);
 
   // Voice mode selector
-  voiceModeBox.addItem("Mono", 1);
-  voiceModeBox.addItem("Poly 3", 2);
-  voiceModeBox.addItem("Poly 6", 3); // With VRC6
-  voiceModeBox.addItem("Split", 4);
+  voiceModeBox.addItem("Round-Robin", 1);
+  voiceModeBox.addItem("Pitch-Split", 2);
   voiceModeBox.setColour(juce::ComboBox::backgroundColourId, kHeaderColor);
   voiceModeBox.setColour(juce::ComboBox::textColourId, kTextColor);
   voiceModeBox.setColour(juce::ComboBox::outlineColourId,

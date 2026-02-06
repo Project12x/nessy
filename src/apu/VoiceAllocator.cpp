@@ -13,61 +13,29 @@ void VoiceAllocator::noteOn(int midiChannel, int noteNumber, float velocity) {
   int nesChannel = -1;
 
   switch (m_mode) {
-  case Mode::MONO:
-    nesChannel = NessyAPU::PULSE1;
-    break;
-
-  case Mode::POLY_4: {
-    // Check if note already playing on base channels
-    for (int i = 0; i < NUM_BASE_MELODIC; ++i) {
-      if (m_voices[i].noteNumber == noteNumber) {
-        nesChannel = i;
-        break;
-      }
-    }
-    // Find free or steal oldest from base melodic channels
-    if (nesChannel < 0) {
-      nesChannel = findFreeChannel();
-      if (nesChannel < 0)
-        nesChannel = findOldestChannel();
-    }
-    break;
-  }
-
-  case Mode::POLY_7: {
-    // Check all melodic channels (base + VRC6 if enabled)
-    int maxChannels = m_vrc6Enabled ? (NUM_BASE_MELODIC + NUM_VRC6_MELODIC)
-                                    : NUM_BASE_MELODIC;
-
+  case Mode::ROUND_ROBIN: {
     // Check if note already playing
-    for (int i = 0; i < NUM_BASE_MELODIC; ++i) {
-      if (m_voices[i].noteNumber == noteNumber) {
-        nesChannel = i;
+    for (int i = 0; i < getMaxChannels(); ++i) {
+      int ch = m_channelOrder[i];
+      if (m_voices[ch].noteNumber == noteNumber) {
+        nesChannel = ch;
         break;
       }
     }
-    if (nesChannel < 0 && m_vrc6Enabled) {
-      for (int i = 0; i < NUM_VRC6_MELODIC; ++i) {
-        int ch = 5 + i; // VRC6_PULSE1=5, VRC6_PULSE2=6, VRC6_SAW=7
-        if (m_voices[ch].noteNumber == noteNumber) {
-          nesChannel = ch;
-          break;
-        }
-      }
-    }
-
-    // Find free or steal oldest
-    if (nesChannel < 0) {
+    // Find free channel using priority order
+    if (nesChannel < 0)
       nesChannel = findFreeChannel();
-      if (nesChannel < 0)
-        nesChannel = findOldestChannel();
-    }
+    // Steal oldest if all channels full
+    if (nesChannel < 0)
+      nesChannel = findOldestChannel();
     break;
   }
 
-  case Mode::SPLIT:
-    nesChannel = midiChannelToNesChannel(midiChannel);
+  case Mode::PITCH_SPLIT: {
+    // Route based on pitch
+    nesChannel = findChannelForPitch(noteNumber);
     break;
+  }
   }
 
   if (nesChannel >= 0 && nesChannel < NUM_TOTAL_VOICES) {
@@ -90,19 +58,9 @@ void VoiceAllocator::noteOff(int midiChannel, int noteNumber) {
 
   for (int i = 0; i < NUM_TOTAL_VOICES; ++i) {
     if (m_voices[i].noteNumber == noteNumber) {
-      // In split mode, also check MIDI channel
-      if (m_mode == Mode::SPLIT) {
-        int expectedChannel = midiChannelToNesChannel(midiChannel);
-        if (i != expectedChannel)
-          continue;
-      }
-
       m_voices[i].noteNumber = -1;
       m_voices[i].velocity = 0.0f;
       m_apu->noteOff(i);
-
-      if (m_mode == Mode::MONO)
-        break;
     }
   }
 }
@@ -124,72 +82,106 @@ int VoiceAllocator::getChannelForNote(int noteNumber) const {
   return -1;
 }
 
+int VoiceAllocator::getMaxChannels() const { return m_vrc6Enabled ? 6 : 3; }
+
 int VoiceAllocator::findFreeChannel() const {
-  // Check base melodic channels first (0, 1, 2 = P1, P2, Tri)
-  for (int i = 0; i < NUM_BASE_MELODIC; ++i) {
-    if (m_voices[i].noteNumber < 0)
-      return i;
+  // Use channel order priority
+  int maxCh = getMaxChannels();
+  for (int i = 0; i < maxCh; ++i) {
+    int ch = m_channelOrder[i];
+    if (m_voices[ch].noteNumber < 0)
+      return ch;
   }
-
-  // Check VRC6 channels if enabled and in POLY_7 mode (5, 6, 7)
-  if (m_vrc6Enabled && m_mode == Mode::POLY_7) {
-    for (int i = 0; i < NUM_VRC6_MELODIC; ++i) {
-      int ch = 5 + i; // VRC6_PULSE1=5, VRC6_PULSE2=6, VRC6_SAW=7
-      if (m_voices[ch].noteNumber < 0)
-        return ch;
-    }
-  }
-
   return -1;
 }
 
 int VoiceAllocator::findOldestChannel() const {
-  int oldest = 0;
-  uint32_t oldestTime = m_voices[0].timestamp;
+  int maxCh = getMaxChannels();
+  if (maxCh == 0)
+    return -1;
 
-  // Check base melodic channels (0, 1, 2)
-  for (int i = 0; i < NUM_BASE_MELODIC; ++i) {
-    if (m_voices[i].timestamp < oldestTime) {
-      oldest = i;
-      oldestTime = m_voices[i].timestamp;
-    }
-  }
+  int oldest = m_channelOrder[0];
+  uint32_t oldestTime = m_voices[oldest].timestamp;
 
-  // Check VRC6 channels if enabled and in POLY_7 mode (5, 6, 7)
-  if (m_vrc6Enabled && m_mode == Mode::POLY_7) {
-    for (int i = 0; i < NUM_VRC6_MELODIC; ++i) {
-      int ch = 5 + i;
-      if (m_voices[ch].timestamp < oldestTime) {
-        oldest = ch;
-        oldestTime = m_voices[ch].timestamp;
-      }
+  for (int i = 1; i < maxCh; ++i) {
+    int ch = m_channelOrder[i];
+    if (m_voices[ch].timestamp < oldestTime) {
+      oldest = ch;
+      oldestTime = m_voices[ch].timestamp;
     }
   }
 
   return oldest;
 }
 
+int VoiceAllocator::findChannelForPitch(int noteNumber) const {
+  // Pitch-split: low notes go to bass channels (Triangle, VRC6_SAW)
+  // High notes go to pulse channels
+  bool isLowNote = noteNumber < m_splitPoint;
+
+  if (isLowNote) {
+    // Bass channels: Triangle first, then VRC6_SAW if enabled
+    if (m_voices[TRIANGLE].noteNumber < 0)
+      return TRIANGLE;
+    if (m_vrc6Enabled && m_voices[VRC6_SAW].noteNumber < 0)
+      return VRC6_SAW;
+    // If bass channels full, steal oldest bass channel
+    if (m_vrc6Enabled) {
+      return (m_voices[TRIANGLE].timestamp < m_voices[VRC6_SAW].timestamp)
+                 ? TRIANGLE
+                 : VRC6_SAW;
+    }
+    return TRIANGLE;
+  } else {
+    // High notes: Pulse channels (P1, P2, VRC6_P1, VRC6_P2)
+    if (m_voices[PULSE1].noteNumber < 0)
+      return PULSE1;
+    if (m_voices[PULSE2].noteNumber < 0)
+      return PULSE2;
+    if (m_vrc6Enabled) {
+      if (m_voices[VRC6_PULSE1].noteNumber < 0)
+        return VRC6_PULSE1;
+      if (m_voices[VRC6_PULSE2].noteNumber < 0)
+        return VRC6_PULSE2;
+    }
+    // Steal oldest pulse channel
+    int oldest = PULSE1;
+    uint32_t oldestTime = m_voices[PULSE1].timestamp;
+    if (m_voices[PULSE2].timestamp < oldestTime) {
+      oldest = PULSE2;
+      oldestTime = m_voices[PULSE2].timestamp;
+    }
+    if (m_vrc6Enabled) {
+      if (m_voices[VRC6_PULSE1].timestamp < oldestTime) {
+        oldest = VRC6_PULSE1;
+        oldestTime = m_voices[VRC6_PULSE1].timestamp;
+      }
+      if (m_voices[VRC6_PULSE2].timestamp < oldestTime) {
+        oldest = VRC6_PULSE2;
+      }
+    }
+    return oldest;
+  }
+}
+
 int VoiceAllocator::midiChannelToNesChannel(int midiChannel) const {
-  // Extended split mode with VRC6 support
-  // Ch 1 = Pulse 1, Ch 2 = Pulse 2, Ch 3 = Triangle
-  // Ch 5 = VRC6_P1, Ch 6 = VRC6_P2, Ch 7 = VRC6_SAW
-  // Ch 10 = Noise (standard MIDI drums)
+  // MIDI channel to NES channel mapping for reference
   switch (midiChannel) {
   case 0:
-    return NessyAPU::PULSE1;
+    return PULSE1;
   case 1:
-    return NessyAPU::PULSE2;
+    return PULSE2;
   case 2:
-    return NessyAPU::TRIANGLE;
+    return TRIANGLE;
   case 4:
-    return m_vrc6Enabled ? NessyAPU::VRC6_PULSE1 : NessyAPU::PULSE1;
+    return m_vrc6Enabled ? VRC6_PULSE1 : PULSE1;
   case 5:
-    return m_vrc6Enabled ? NessyAPU::VRC6_PULSE2 : NessyAPU::PULSE2;
+    return m_vrc6Enabled ? VRC6_PULSE2 : PULSE2;
   case 6:
-    return m_vrc6Enabled ? NessyAPU::VRC6_SAW : NessyAPU::TRIANGLE;
+    return m_vrc6Enabled ? VRC6_SAW : TRIANGLE;
   case 9:
-    return NessyAPU::NOISE;
+    return NOISE;
   default:
-    return NessyAPU::PULSE1;
+    return PULSE1;
   }
 }
