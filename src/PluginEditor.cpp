@@ -3,14 +3,14 @@
 
 namespace {
 // NES-inspired color palette
-const juce::Colour kBackgroundColor{0xff1d1d1d}; // Dark gray
-const juce::Colour kPrimaryColor{0xffe74c3c};    // NES red
-const juce::Colour kSecondaryColor{0xff3498db};  // NES blue
-const juce::Colour kTextColor{0xfff0f0f0};       // Off-white
-const juce::Colour kAccentColor{0xff27ae60};     // Green
-const juce::Colour kOrangeColor{0xfff39c12};     // Orange for Noise
+const juce::Colour kBackgroundColor{0xff1d1d1d};
+const juce::Colour kHeaderColor{0xff2a2a2a};
+const juce::Colour kPrimaryColor{0xffe74c3c};   // NES red
+const juce::Colour kSecondaryColor{0xff3498db}; // NES blue
+const juce::Colour kTextColor{0xfff0f0f0};
+const juce::Colour kAccentColor{0xff27ae60}; // Green
+const juce::Colour kOrangeColor{0xfff39c12};
 
-// Load embedded fonts
 juce::Typeface::Ptr loadTypeface(const char *data, size_t size) {
   return juce::Typeface::createSystemTypefaceFor(data, size);
 }
@@ -40,8 +40,90 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
     : AudioProcessorEditor(&p), processorRef(p),
       keyboard(p.getKeyboardState(),
                juce::MidiKeyboardComponent::horizontalKeyboard) {
-  // Style the keyboard with NES colors
-  keyboard.setKeyWidth(40.0f);
+  auto &apvts = processorRef.getAPVTS();
+
+  // Master volume slider
+  masterVolumeSlider.setSliderStyle(juce::Slider::RotaryVerticalDrag);
+  masterVolumeSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 18);
+  masterVolumeSlider.setColour(juce::Slider::rotarySliderFillColourId,
+                               kPrimaryColor);
+  masterVolumeSlider.setColour(juce::Slider::thumbColourId, kTextColor);
+  addAndMakeVisible(masterVolumeSlider);
+  masterVolumeAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+          apvts, "masterVolume", masterVolumeSlider);
+
+  // Channel toggles
+  auto setupToggle = [this](juce::ToggleButton &toggle, juce::Colour color) {
+    toggle.setColour(juce::ToggleButton::tickColourId, color);
+    toggle.setColour(juce::ToggleButton::tickDisabledColourId,
+                     color.withAlpha(0.3f));
+    addAndMakeVisible(toggle);
+  };
+
+  setupToggle(pulse1Toggle, kPrimaryColor);
+  setupToggle(pulse2Toggle, kSecondaryColor);
+  setupToggle(triangleToggle, kAccentColor);
+  setupToggle(noiseToggle, kOrangeColor);
+
+  pulse1Attachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          apvts, "pulse1Enable", pulse1Toggle);
+  pulse2Attachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          apvts, "pulse2Enable", pulse2Toggle);
+  triangleAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          apvts, "triangleEnable", triangleToggle);
+  noiseAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          apvts, "noiseEnable", noiseToggle);
+
+  // Duty cycle combo boxes
+  auto setupDutyBox = [this](juce::ComboBox &box) {
+    box.addItem("12.5%", 1);
+    box.addItem("25%", 2);
+    box.addItem("50%", 3);
+    box.addItem("75%", 4);
+    box.setColour(juce::ComboBox::backgroundColourId, kHeaderColor);
+    box.setColour(juce::ComboBox::textColourId, kTextColor);
+    box.setColour(juce::ComboBox::outlineColourId,
+                  kPrimaryColor.withAlpha(0.5f));
+    addAndMakeVisible(box);
+  };
+
+  setupDutyBox(pulse1DutyBox);
+  setupDutyBox(pulse2DutyBox);
+
+  pulse1DutyAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+          apvts, "pulse1Duty", pulse1DutyBox);
+  pulse2DutyAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+          apvts, "pulse2Duty", pulse2DutyBox);
+
+  // Voice mode selector
+  voiceModeBox.addItem("Mono", 1);
+  voiceModeBox.addItem("Poly 4", 2);
+  voiceModeBox.addItem("Split", 3);
+  voiceModeBox.setColour(juce::ComboBox::backgroundColourId, kHeaderColor);
+  voiceModeBox.setColour(juce::ComboBox::textColourId, kTextColor);
+  voiceModeBox.setColour(juce::ComboBox::outlineColourId,
+                         kSecondaryColor.withAlpha(0.5f));
+  addAndMakeVisible(voiceModeBox);
+  voiceModeAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+          apvts, "voiceMode", voiceModeBox);
+
+  // Noise mode toggle
+  noiseModeToggle.setColour(juce::ToggleButton::tickColourId, kOrangeColor);
+  addAndMakeVisible(noiseModeToggle);
+  noiseModeAttachment =
+      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+          apvts, "noiseMode", noiseModeToggle);
+
+  // Keyboard styling
+  keyboard.setKeyWidth(35.0f);
   keyboard.setColour(juce::MidiKeyboardComponent::whiteNoteColourId,
                      juce::Colour(0xffeeeeee));
   keyboard.setColour(juce::MidiKeyboardComponent::blackNoteColourId,
@@ -52,10 +134,9 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
                      kPrimaryColor.withAlpha(0.3f));
   keyboard.setColour(juce::MidiKeyboardComponent::keyDownOverlayColourId,
                      kPrimaryColor.withAlpha(0.6f));
-
   addAndMakeVisible(keyboard);
 
-  setSize(800, 500);
+  setSize(820, 520);
 }
 
 NessyAudioProcessorEditor::~NessyAudioProcessorEditor() {}
@@ -63,105 +144,110 @@ NessyAudioProcessorEditor::~NessyAudioProcessorEditor() {}
 void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
   g.fillAll(kBackgroundColor);
 
-  // Header bar
+  // Header
   g.setColour(kPrimaryColor);
-  g.fillRect(0, 0, getWidth(), 60);
+  g.fillRect(0, 0, getWidth(), 50);
 
-  // Title - NESSY
   g.setColour(kTextColor);
-  g.setFont(getTitleFont(32.0f));
-  g.drawText("NESSY", 20, 10, 200, 40, juce::Justification::centredLeft);
+  g.setFont(getTitleFont(28.0f));
+  g.drawText("NESSY", 15, 8, 150, 34, juce::Justification::centredLeft);
 
-  // Subtitle
-  g.setFont(getBodyFont(14.0f));
-  g.setColour(kTextColor.withAlpha(0.8f));
-  g.drawText("NES APU Synthesizer", 20, 40, 200, 20,
+  g.setFont(getBodyFont(11.0f));
+  g.setColour(kTextColor.withAlpha(0.7f));
+  g.drawText("NES APU Synthesizer", 15, 32, 150, 16,
              juce::Justification::centredLeft);
 
-  // Voice mode indicator (top right)
-  g.setFont(getBodyFont(12.0f));
-  g.setColour(kTextColor.withAlpha(0.6f));
-  g.drawText("4-Voice Poly", getWidth() - 120, 20, 100, 20,
-             juce::Justification::centredRight);
-
-  // Channel section
-  auto bounds =
-      getLocalBounds().reduced(20).withTrimmedTop(80).withTrimmedBottom(100);
-  int channelWidth = bounds.getWidth() / 4;
+  // Channel section labels
+  auto channelArea =
+      getLocalBounds().reduced(15).withTrimmedTop(60).withTrimmedBottom(90);
+  int channelWidth = (channelArea.getWidth() - 100) / 4;
 
   juce::StringArray channels = {"PULSE 1", "PULSE 2", "TRIANGLE", "NOISE"};
-  juce::Array<juce::Colour> channelColors = {kPrimaryColor, kSecondaryColor,
-                                             kAccentColor, kOrangeColor};
+  juce::Array<juce::Colour> colors = {kPrimaryColor, kSecondaryColor,
+                                      kAccentColor, kOrangeColor};
+
+  auto channelX = channelArea.getX() + 100; // After volume knob
 
   for (int i = 0; i < 4; ++i) {
-    auto channelBounds = bounds.removeFromLeft(channelWidth).reduced(8);
+    auto x = channelX + i * channelWidth;
+    auto channelRect = juce::Rectangle<int>(
+        x, channelArea.getY(), channelWidth - 8, channelArea.getHeight());
 
-    // Channel box background
-    g.setColour(channelColors[i].withAlpha(0.15f));
-    g.fillRoundedRectangle(channelBounds.toFloat(), 12.0f);
+    // Channel background
+    g.setColour(colors[i].withAlpha(0.1f));
+    g.fillRoundedRectangle(channelRect.toFloat(), 8.0f);
 
-    // Channel box border
-    g.setColour(channelColors[i]);
-    g.drawRoundedRectangle(channelBounds.toFloat(), 12.0f, 2.0f);
+    // Channel border
+    g.setColour(colors[i].withAlpha(0.5f));
+    g.drawRoundedRectangle(channelRect.toFloat(), 8.0f, 1.5f);
 
     // Channel name
     g.setColour(kTextColor);
-    g.setFont(getTitleFont(13.0f));
-    g.drawText(channels[i], channelBounds.removeFromTop(35),
+    g.setFont(getTitleFont(11.0f));
+    g.drawText(channels[i], channelRect.removeFromTop(25),
                juce::Justification::centred);
-
-    // Waveform placeholder
-    auto waveformArea = channelBounds.reduced(10, 5).removeFromTop(80);
-    g.setColour(channelColors[i].withAlpha(0.3f));
-    g.fillRoundedRectangle(waveformArea.toFloat(), 6.0f);
-
-    // Draw simple waveform representation
-    g.setColour(channelColors[i]);
-    auto centerY = waveformArea.getCentreY();
-    auto width = waveformArea.getWidth();
-    auto startX = waveformArea.getX();
-
-    if (i < 2) // Pulse waves
-    {
-      // Draw square wave
-      juce::Path path;
-      float duty = (i == 0) ? 0.5f : 0.25f;
-      path.startNewSubPath(startX, centerY + 15);
-      path.lineTo(startX + width * duty, centerY + 15);
-      path.lineTo(startX + width * duty, centerY - 15);
-      path.lineTo(startX + width, centerY - 15);
-      g.strokePath(path, juce::PathStrokeType(2.0f));
-    } else if (i == 2) // Triangle
-    {
-      juce::Path path;
-      path.startNewSubPath(startX, centerY);
-      path.lineTo(startX + width * 0.25f, centerY - 15);
-      path.lineTo(startX + width * 0.75f, centerY + 15);
-      path.lineTo(startX + width, centerY);
-      g.strokePath(path, juce::PathStrokeType(2.0f));
-    } else // Noise
-    {
-      juce::Random rng(42);
-      juce::Path path;
-      path.startNewSubPath(startX, centerY);
-      for (int x = 0; x < width; x += 4) {
-        path.lineTo(startX + x, centerY + (rng.nextFloat() * 30 - 15));
-      }
-      g.strokePath(path, juce::PathStrokeType(1.5f));
-    }
   }
 
-  // Version info at bottom
-  g.setColour(kTextColor.withAlpha(0.4f));
+  // Volume label
+  g.setColour(kTextColor);
   g.setFont(getBodyFont(10.0f));
+  g.drawText("VOLUME", channelArea.getX(), channelArea.getY(), 80, 20,
+             juce::Justification::centred);
+
+  // Voice mode label
+  g.drawText("VOICE MODE", getWidth() - 110, 15, 100, 14,
+             juce::Justification::centred);
+
+  // Footer
+  g.setColour(kTextColor.withAlpha(0.3f));
+  g.setFont(getBodyFont(9.0f));
   g.drawText("v0.1.0 | GPL-3.0 | AntigravityLabs",
-             getLocalBounds().removeFromBottom(20),
+             getLocalBounds().removeFromBottom(18),
              juce::Justification::centred);
 }
 
 void NessyAudioProcessorEditor::resized() {
   auto bounds = getLocalBounds();
 
-  // Keyboard at the bottom
-  keyboard.setBounds(bounds.removeFromBottom(80));
+  // Keyboard at bottom
+  keyboard.setBounds(bounds.removeFromBottom(70));
+
+  // Header area controls
+  voiceModeBox.setBounds(getWidth() - 110, 30, 100, 22);
+
+  // Channel section
+  auto channelArea = bounds.reduced(15).withTrimmedTop(50);
+  int channelWidth = (channelArea.getWidth() - 100) / 4;
+
+  // Volume knob on left
+  masterVolumeSlider.setBounds(channelArea.getX(), channelArea.getY() + 20, 80,
+                               80);
+
+  auto channelX = channelArea.getX() + 100;
+
+  // Channel toggles and controls
+  juce::ToggleButton *toggles[] = {&pulse1Toggle, &pulse2Toggle,
+                                   &triangleToggle, &noiseToggle};
+  juce::ComboBox *dutyBoxes[] = {&pulse1DutyBox, &pulse2DutyBox, nullptr,
+                                 nullptr};
+
+  for (int i = 0; i < 4; ++i) {
+    auto x = channelX + i * channelWidth;
+    auto channelRect = juce::Rectangle<int>(
+        x, channelArea.getY(), channelWidth - 8, channelArea.getHeight());
+
+    // Enable toggle
+    toggles[i]->setBounds(channelRect.getX() + 10, channelRect.getY() + 30,
+                          channelRect.getWidth() - 20, 24);
+
+    // Duty cycle or noise mode
+    if (i < 2 && dutyBoxes[i] != nullptr) {
+      dutyBoxes[i]->setBounds(channelRect.getX() + 10, channelRect.getY() + 60,
+                              channelRect.getWidth() - 20, 24);
+    } else if (i == 3) {
+      noiseModeToggle.setBounds(channelRect.getX() + 10,
+                                channelRect.getY() + 60,
+                                channelRect.getWidth() - 20, 24);
+    }
+  }
 }

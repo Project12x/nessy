@@ -41,6 +41,9 @@ public:
   // Access to keyboard state for UI
   juce::MidiKeyboardState &getKeyboardState() { return keyboardState; }
 
+  // Access to APVTS for UI controls
+  juce::AudioProcessorValueTreeState &getAPVTS() { return parameters; }
+
 private:
   // Audio parameters
   juce::AudioProcessorValueTreeState parameters;
