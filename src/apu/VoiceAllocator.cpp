@@ -1,8 +1,12 @@
-// VoiceAllocator: Routes MIDI notes to NES APU channels
-// GPL-3.0
+// VoiceAllocator: Routes MIDI notes to NES APU channels including expansion
+// chips GPL-3.0
 
 #include "VoiceAllocator.h"
 #include "NessyAPU.h"
+
+// Static array definitions
+constexpr int VoiceAllocator::MELODIC_CHANNELS_BASE[];
+constexpr int VoiceAllocator::MELODIC_CHANNELS_VRC6[];
 
 VoiceAllocator::VoiceAllocator() { allNotesOff(); }
 
@@ -14,20 +18,48 @@ void VoiceAllocator::noteOn(int midiChannel, int noteNumber, float velocity) {
 
   switch (m_mode) {
   case Mode::MONO:
-    // Always use Pulse 1
     nesChannel = NessyAPU::PULSE1;
     break;
 
   case Mode::POLY_4: {
-    // Check if this note is already playing
-    for (int i = 0; i < NUM_MELODIC_CHANNELS; ++i) {
+    // Check if note already playing on base channels
+    for (int i = 0; i < NUM_BASE_MELODIC; ++i) {
       if (m_voices[i].noteNumber == noteNumber) {
         nesChannel = i;
         break;
       }
     }
+    // Find free or steal oldest from base melodic channels
+    if (nesChannel < 0) {
+      nesChannel = findFreeChannel();
+      if (nesChannel < 0)
+        nesChannel = findOldestChannel();
+    }
+    break;
+  }
 
-    // Find a free channel or steal the oldest
+  case Mode::POLY_7: {
+    // Check all melodic channels (base + VRC6 if enabled)
+    int maxChannels = m_vrc6Enabled ? (NUM_BASE_MELODIC + NUM_VRC6_MELODIC)
+                                    : NUM_BASE_MELODIC;
+
+    // Check if note already playing
+    for (int i = 0; i < NUM_BASE_MELODIC; ++i) {
+      if (m_voices[i].noteNumber == noteNumber) {
+        nesChannel = i;
+        break;
+      }
+    }
+    if (nesChannel < 0 && m_vrc6Enabled) {
+      for (int ch : MELODIC_CHANNELS_VRC6) {
+        if (m_voices[ch].noteNumber == noteNumber) {
+          nesChannel = ch;
+          break;
+        }
+      }
+    }
+
+    // Find free or steal oldest
     if (nesChannel < 0) {
       nesChannel = findFreeChannel();
       if (nesChannel < 0)
@@ -41,13 +73,12 @@ void VoiceAllocator::noteOn(int midiChannel, int noteNumber, float velocity) {
     break;
   }
 
-  if (nesChannel >= 0 && nesChannel < 4) {
-    // Turn off any existing note on this channel
+  if (nesChannel >= 0 && nesChannel < NUM_TOTAL_VOICES) {
+    // Turn off existing note on this channel
     if (m_voices[nesChannel].noteNumber >= 0) {
       m_apu->noteOff(nesChannel);
     }
 
-    // Play the new note
     m_voices[nesChannel].noteNumber = noteNumber;
     m_voices[nesChannel].velocity = velocity;
     m_voices[nesChannel].timestamp = ++m_timestamp;
@@ -60,8 +91,7 @@ void VoiceAllocator::noteOff(int midiChannel, int noteNumber) {
   if (!m_apu)
     return;
 
-  // Find which channel is playing this note
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < NUM_TOTAL_VOICES; ++i) {
     if (m_voices[i].noteNumber == noteNumber) {
       // In split mode, also check MIDI channel
       if (m_mode == Mode::SPLIT) {
@@ -74,7 +104,6 @@ void VoiceAllocator::noteOff(int midiChannel, int noteNumber) {
       m_voices[i].velocity = 0.0f;
       m_apu->noteOff(i);
 
-      // In mono mode, only one note can play so we're done
       if (m_mode == Mode::MONO)
         break;
     }
@@ -82,7 +111,7 @@ void VoiceAllocator::noteOff(int midiChannel, int noteNumber) {
 }
 
 void VoiceAllocator::allNotesOff() {
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < NUM_TOTAL_VOICES; ++i) {
     m_voices[i].noteNumber = -1;
     m_voices[i].velocity = 0.0f;
     if (m_apu)
@@ -91,7 +120,7 @@ void VoiceAllocator::allNotesOff() {
 }
 
 int VoiceAllocator::getChannelForNote(int noteNumber) const {
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i < NUM_TOTAL_VOICES; ++i) {
     if (m_voices[i].noteNumber == noteNumber)
       return i;
   }
@@ -99,11 +128,20 @@ int VoiceAllocator::getChannelForNote(int noteNumber) const {
 }
 
 int VoiceAllocator::findFreeChannel() const {
-  // Priority order: Pulse 1, Pulse 2, Triangle
-  for (int i = 0; i < NUM_MELODIC_CHANNELS; ++i) {
-    if (m_voices[i].noteNumber < 0)
-      return i;
+  // Check base melodic channels first
+  for (int ch : MELODIC_CHANNELS_BASE) {
+    if (m_voices[ch].noteNumber < 0)
+      return ch;
   }
+
+  // Check VRC6 channels if enabled and in POLY_7 mode
+  if (m_vrc6Enabled && m_mode == Mode::POLY_7) {
+    for (int ch : MELODIC_CHANNELS_VRC6) {
+      if (m_voices[ch].noteNumber < 0)
+        return ch;
+    }
+  }
+
   return -1;
 }
 
@@ -111,10 +149,21 @@ int VoiceAllocator::findOldestChannel() const {
   int oldest = 0;
   uint32_t oldestTime = m_voices[0].timestamp;
 
-  for (int i = 1; i < NUM_MELODIC_CHANNELS; ++i) {
-    if (m_voices[i].timestamp < oldestTime) {
-      oldest = i;
-      oldestTime = m_voices[i].timestamp;
+  // Check base melodic channels
+  for (int ch : MELODIC_CHANNELS_BASE) {
+    if (m_voices[ch].timestamp < oldestTime) {
+      oldest = ch;
+      oldestTime = m_voices[ch].timestamp;
+    }
+  }
+
+  // Check VRC6 channels if enabled and in POLY_7 mode
+  if (m_vrc6Enabled && m_mode == Mode::POLY_7) {
+    for (int ch : MELODIC_CHANNELS_VRC6) {
+      if (m_voices[ch].timestamp < oldestTime) {
+        oldest = ch;
+        oldestTime = m_voices[ch].timestamp;
+      }
     }
   }
 
@@ -122,8 +171,10 @@ int VoiceAllocator::findOldestChannel() const {
 }
 
 int VoiceAllocator::midiChannelToNesChannel(int midiChannel) const {
-  // MIDI channels are 1-16 (or 0-15 in code)
-  // Ch 1 = Pulse 1, Ch 2 = Pulse 2, Ch 3 = Triangle, Ch 10 = Noise
+  // Extended split mode with VRC6 support
+  // Ch 1 = Pulse 1, Ch 2 = Pulse 2, Ch 3 = Triangle
+  // Ch 5 = VRC6_P1, Ch 6 = VRC6_P2, Ch 7 = VRC6_SAW
+  // Ch 10 = Noise (standard MIDI drums)
   switch (midiChannel) {
   case 0:
     return NessyAPU::PULSE1;
@@ -131,9 +182,15 @@ int VoiceAllocator::midiChannelToNesChannel(int midiChannel) const {
     return NessyAPU::PULSE2;
   case 2:
     return NessyAPU::TRIANGLE;
+  case 4:
+    return m_vrc6Enabled ? NessyAPU::VRC6_PULSE1 : NessyAPU::PULSE1;
+  case 5:
+    return m_vrc6Enabled ? NessyAPU::VRC6_PULSE2 : NessyAPU::PULSE2;
+  case 6:
+    return m_vrc6Enabled ? NessyAPU::VRC6_SAW : NessyAPU::TRIANGLE;
   case 9:
-    return NessyAPU::NOISE; // Standard MIDI drum channel
+    return NessyAPU::NOISE;
   default:
-    return NessyAPU::PULSE1; // Fallback
+    return NessyAPU::PULSE1;
   }
 }

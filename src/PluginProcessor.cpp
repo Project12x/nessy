@@ -40,8 +40,8 @@ createParameterLayout() {
   // Voice allocation mode
   layout.add(std::make_unique<juce::AudioParameterChoice>(
       juce::ParameterID("voiceMode", 1), "Voice Mode",
-      juce::StringArray{"Mono", "Poly 4", "Split"},
-      1)); // Default to Poly 4
+      juce::StringArray{"Mono", "Poly 3", "Poly 6", "Split"},
+      1)); // Default to Poly 3
 
   // VRC6 Expansion
   layout.add(std::make_unique<juce::AudioParameterBool>(
@@ -156,6 +156,12 @@ void NessyAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   int voiceMode =
       static_cast<int>(parameters.getRawParameterValue("voiceMode")->load());
   voiceAllocator->setMode(static_cast<VoiceAllocator::Mode>(voiceMode));
+
+  // Sync VRC6 enable state to voice allocator
+  bool vrc6Enabled =
+      parameters.getRawParameterValue("vrc6Enable")->load() > 0.5f;
+  voiceAllocator->setVRC6Enabled(vrc6Enabled);
+  apu->setVRC6Enabled(vrc6Enabled);
 
   // Add virtual keyboard events to the MIDI buffer
   keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);

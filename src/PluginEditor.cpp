@@ -114,8 +114,9 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
 
   // Voice mode selector
   voiceModeBox.addItem("Mono", 1);
-  voiceModeBox.addItem("Poly 4", 2);
-  voiceModeBox.addItem("Split", 3);
+  voiceModeBox.addItem("Poly 3", 2);
+  voiceModeBox.addItem("Poly 6", 3); // With VRC6
+  voiceModeBox.addItem("Split", 4);
   voiceModeBox.setColour(juce::ComboBox::backgroundColourId, kHeaderColor);
   voiceModeBox.setColour(juce::ComboBox::textColourId, kTextColor);
   voiceModeBox.setColour(juce::ComboBox::outlineColourId,

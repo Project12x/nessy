@@ -1,7 +1,7 @@
 #pragma once
 
-// VoiceAllocator: Routes MIDI notes to NES APU channels
-// GPL-3.0
+// VoiceAllocator: Routes MIDI notes to NES APU channels including expansion
+// chips GPL-3.0
 
 #include <array>
 #include <cstdint>
@@ -13,8 +13,11 @@ public:
   // Allocation modes
   enum class Mode {
     MONO,   // All notes to Pulse 1 only (authentic NES)
-    POLY_4, // Round-robin: P1 → P2 → Tri → Noise (4-voice poly)
-    SPLIT   // MIDI channel routing (Ch1=P1, Ch2=P2, Ch3=Tri, Ch10=Noise)
+    POLY_4, // Round-robin: P1 → P2 → Tri (3-voice melodic poly)
+    POLY_7, // With VRC6: P1 → P2 → Tri → VRC6_P1 → VRC6_P2 → VRC6_SAW (6-voice
+            // melodic poly)
+    SPLIT // MIDI channel routing (Ch1=P1, Ch2=P2, Ch3=Tri, Ch10=Noise,
+          // Ch5/6/7=VRC6)
   };
 
   VoiceAllocator();
@@ -22,6 +25,10 @@ public:
   void setAPU(NessyAPU *apu) { m_apu = apu; }
   void setMode(Mode mode) { m_mode = mode; }
   Mode getMode() const { return m_mode; }
+
+  // VRC6 enable state (affects POLY_7 mode channel selection)
+  void setVRC6Enabled(bool enabled) { m_vrc6Enabled = enabled; }
+  bool isVRC6Enabled() const { return m_vrc6Enabled; }
 
   // Handle MIDI events
   void noteOn(int midiChannel, int noteNumber, float velocity);
@@ -32,27 +39,32 @@ public:
   int getChannelForNote(int noteNumber) const;
 
 private:
-  // Channel assignment for each NES channel (which MIDI note it's playing, -1
-  // if none)
   struct Voice {
     int noteNumber = -1;
     float velocity = 0.0f;
-    uint32_t timestamp = 0; // For note stealing (oldest note stolen first)
+    uint32_t timestamp = 0;
   };
 
-  static constexpr int NUM_MELODIC_CHANNELS = 3; // Pulse1, Pulse2, Triangle
+  // Channel counts
+  static constexpr int NUM_BASE_MELODIC = 3; // Pulse1, Pulse2, Triangle
+  static constexpr int NUM_VRC6_MELODIC = 3; // VRC6_P1, VRC6_P2, VRC6_SAW
+  static constexpr int NUM_TOTAL_VOICES =
+      8; // All channels including Noise and DMC
   static constexpr int NOISE_CHANNEL = 3;
 
-  // Find best channel for a new note
+  // Melodic channel indices for allocation
+  static constexpr int MELODIC_CHANNELS_BASE[] = {0, 1, 2}; // P1, P2, Tri
+  static constexpr int MELODIC_CHANNELS_VRC6[] = {
+      5, 6, 7}; // VRC6_P1, VRC6_P2, VRC6_SAW
+
   int findFreeChannel() const;
   int findOldestChannel() const;
-
-  // Map MIDI channel to NES channel for split mode
   int midiChannelToNesChannel(int midiChannel) const;
 
   NessyAPU *m_apu = nullptr;
   Mode m_mode = Mode::POLY_4;
+  bool m_vrc6Enabled = false;
 
-  std::array<Voice, 4> m_voices; // P1, P2, Tri, Noise
+  std::array<Voice, NUM_TOTAL_VOICES> m_voices;
   uint32_t m_timestamp = 0;
 };
