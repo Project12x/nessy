@@ -9,16 +9,16 @@
 - NES hardware-themed UI (Press Start 2P, scanlines, pixel grooves)
 - Per-channel oscilloscopes
 
-## Phase 7: Sound & Vision Upgrade 🔶 In Progress
+## Phase 7: Sound & Vision Upgrade ✅ Complete
 
 - [x] Per-channel oscilloscopes with 8-bit aesthetic
 - [x] VRC6 expansion UI and synthesis (Pulse 1, Pulse 2, Sawtooth)
 - [x] Audio output fixed (Render() path)
 - [x] Unison full-stack mode (respects per-channel enable)
-- [ ] **DMC sample mapping** — map MIDI notes to DPCM sample bank (kick, snare, bass, tom, hi-hat)
-- [ ] **Accurate TND mixing** — non-linear lookup table for Triangle + Noise + DMC
+- [x] **DMC sample mapping** — Kick, Snare, Hi-Hat ×2, Tom ×2 with GM drum map
+- [x] **Accurate TND mixing** — non-linear resistor-ladder formula (NESdev)
 
-## Phase 8: Hardware Macros (Authenticity Gap #1)
+## Phase 8: Hardware Macros 🔶 In Progress
 
 These are the core features behind every recognizable NES sound. All are implemented as frame-rate (60Hz) register write sequences — authentic hardware, not software effects.
 

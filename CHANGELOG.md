@@ -7,12 +7,10 @@ Format: [keepachangelog.com](https://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 
 ### Added
-- DMC channel basic playback with NessyMemory virtual device (factory kick sample at $C000)
-- Per-channel oscilloscopes with 8-bit pixelated waveform aesthetic
-- VRC6 expansion chip support (Pulse 1, Pulse 2, Sawtooth)
-- VRC6 duty cycle controls (8 levels, 6.25%–50%)
-- Unison mode now stacks all enabled melodic channels (Pulse 1, Pulse 2, Triangle, VRC6 ×3)
-- Channel enabled state propagated to voice allocator for per-channel unison control
+- Non-linear NES APU mixing using NESdev resistor-ladder formula (pulse/TND separation)
+- DMC factory drum kit: Kick, Snare, Hi-Hat (closed/open), Tom Lo, Tom Hi at $C000–$C500
+- MIDI note → DPCM slot mapping following GM drum map (note 36=Kick, 38=Snare, 42=Hi-Hat, etc.)
+- DMC channel now triggers — per-note rate and address/length register writes
 
 ### Fixed
 - Audio silence caused by incorrect mixing (raw `out` values vs `Render()` output)

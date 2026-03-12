@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-**Phase 7/8 — Sound & Vision Upgrade (In Progress)**
+**Phase 8 — Hardware Macros (In Progress)**
 
 ## Build Status
 
@@ -26,7 +26,7 @@
 | Pulse 2 | ✅ Working | Duty cycle, volume, MIDI note-to-period |
 | Triangle | ✅ Working | Volume always max (HW limitation) |
 | Noise | ✅ Working | Short/long mode, pitch-mapped period |
-| DMC | 🔶 Partial | Factory kick sample only; no sample mapping |
+| DMC | ✅ Working | 6-slot DPCM kit; GM drum note mapping |
 | VRC6 Pulse 1 | ✅ Working | 8-level duty cycle |
 | VRC6 Pulse 2 | ✅ Working | 8-level duty cycle |
 | VRC6 Saw | ✅ Working | Accumulator rate = volume |
