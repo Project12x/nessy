@@ -124,26 +124,38 @@ int NessyAPU::process(float *leftOutput, float *rightOutput, int numSamples) {
       recordVisualizer(VRC6_SAW, vrc6Out[2], 42.0f); // Saw accumulator max ~42
     }
 
-    // Mix for output
-    // Use Render() to get proper non-linear mixed levels (approx 16-bit range)
-    int32_t bufferPulse[2] = {0};
-    int32_t bufferTND[2] = {0};
-    int32_t bufferVRC6[2] = {0};
+    // Accurate NES non-linear mixing (NESdev APU Mixer reference)
+    // Pulse: 95.88 / (8128 / (p1 + p2) + 100)
+    // TND:  159.79 / (1 / (tri/8227 + noise/12241 + dmc/22638) + 100)
+    // Both normalised to 0..1, then summed and mapped to -1..1
+    const int32_t p1  = m_apu1->out[0]; // 0–15
+    const int32_t p2  = m_apu1->out[1]; // 0–15
+    const int32_t tri = m_apu2->out[0]; // 0–15
+    const int32_t nse = m_apu2->out[1]; // 0–15
+    const int32_t dmc = m_apu2->out[2]; // 0–127
 
-    m_apu1->Render(bufferPulse); // Pulse 1 + 2
-    m_apu2->Render(bufferTND);   // Triangle + Noise + DMC
+    float pulseOut = 0.0f;
+    if (p1 + p2 > 0)
+      pulseOut = 95.88f / (8128.0f / static_cast<float>(p1 + p2) + 100.0f);
 
-    int32_t mixed = bufferPulse[0] + bufferTND[0];
+    float tndDenom = static_cast<float>(tri) / 8227.0f
+                   + static_cast<float>(nse) / 12241.0f
+                   + static_cast<float>(dmc) / 22638.0f;
+    float tndOut = 0.0f;
+    if (tndDenom > 0.0f)
+      tndOut = 159.79f / (1.0f / tndDenom + 100.0f);
+
+    // pulseOut + tndOut is in [0, ~0.9], map to [-1, 1]
+    float mixed = (pulseOut + tndOut) * 2.0f - 0.9f;
 
     if (m_vrc6Enabled) {
+      // VRC6 is external — sum linearly and scale to match APU level
+      int32_t bufferVRC6[2] = {0};
       m_vrc6->Render(bufferVRC6);
-      mixed += bufferVRC6[0];
+      mixed += static_cast<float>(bufferVRC6[0]) / 65536.0f;
     }
 
-    // Output is roughly 16-bit range, jlimit just in case
-    // Dividing by 32768.0f gives us the -1.0 to 1.0 range
-    float finalSample =
-        juce::jlimit(-1.0f, 1.0f, static_cast<float>(mixed) / 32768.0f);
+    float finalSample = juce::jlimit(-1.0f, 1.0f, mixed);
     leftOutput[samplesGenerated] = finalSample;
     rightOutput[samplesGenerated] = finalSample;
     ++samplesGenerated;
@@ -202,29 +214,27 @@ void NessyAPU::noteOn(int channel, int midiNote, float velocity) {
     writeRegister(0x400F, 0xF8);
     break;
   }
-  case DMC:
-    // DMC Trigger: Play "Kick" sample at $C000
-    writeRegister(0x4010, 0x0F); // Rate F (Highest)
-    writeRegister(0x4012, 0x00); // Address $C000
-    writeRegister(0x4013, 0x08); // Length
+  case DMC: {
+    int slot = NessyMemory::midiToDmcSlot(midiNote);
+    const DmcSample* s = m_memory->getSample(slot);
+    if (!s) break;
 
-    {
-      // Toggle DMC enable bit to restart sample if needed
-      uint8_t status = 0;
-      if (m_channelEnabled[PULSE1])
-        status |= 0x01;
-      if (m_channelEnabled[PULSE2])
-        status |= 0x02;
-      if (m_channelEnabled[TRIANGLE])
-        status |= 0x04;
-      if (m_channelEnabled[NOISE])
-        status |= 0x08;
+    // Rate ($4010), address ($4012), length ($4013)
+    writeRegister(0x4010, s->rateReg & 0x0F);
+    writeRegister(0x4012, s->addrReg);
+    writeRegister(0x4013, s->lenReg);
 
-      writeRegister(0x4015, status); // Disable DMC
-      status |= 0x10;                // Enable DMC
-      writeRegister(0x4015, status); // Trigger
-    }
+    // Restart: disable DMC bit then re-enable to trigger sample
+    uint8_t status = 0;
+    if (m_channelEnabled[PULSE1])   status |= 0x01;
+    if (m_channelEnabled[PULSE2])   status |= 0x02;
+    if (m_channelEnabled[TRIANGLE]) status |= 0x04;
+    if (m_channelEnabled[NOISE])    status |= 0x08;
+
+    writeRegister(0x4015, status);        // clear DMC bit
+    writeRegister(0x4015, status | 0x10); // set DMC bit — triggers sample
     break;
+  }
 
   // VRC6 expansion channels
   case VRC6_PULSE1: {
