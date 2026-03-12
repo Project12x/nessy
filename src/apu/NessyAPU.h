@@ -13,6 +13,7 @@ class NES_DMC;
 class NES_VRC6;
 } // namespace xgm
 class Blip_Buffer;
+class NessyMemory;
 template <int quality> class Blip_Synth;
 
 class NessyAPU {
@@ -57,6 +58,11 @@ public:
 
   // Channel configuration
   void setChannelEnabled(int channel, bool enabled);
+  bool isChannelEnabled(int channel) const {
+    if (channel < 0 || channel >= NUM_CHANNELS)
+      return false;
+    return m_channelEnabled[channel];
+  }
   void setPulseDuty(int pulseChannel, DutyCycle duty);
   void setNoiseMode(bool shortMode);
 
@@ -66,6 +72,12 @@ public:
 
   // Get channel frequency for visualization
   double getChannelFrequency(int channel) const;
+
+  // Visualizer data access
+  static constexpr int VISUALIZER_BUFFER_SIZE = 512;
+  const float *getVisualizerBuffer(int channel) const {
+    return m_visualizerBuffers[channel];
+  }
 
   // Direct register access (for advanced use)
   void writeRegister(uint16_t address, uint8_t value);
@@ -81,6 +93,9 @@ private:
 
   // Blip_Buffer for bandlimited synthesis
   std::unique_ptr<Blip_Buffer> m_blipBuffer;
+
+  // Virtual memory for DMC samples
+  std::unique_ptr<NessyMemory> m_memory;
 
   // Sample rate and timing
   double m_sampleRate = 44100.0;
@@ -101,4 +116,8 @@ private:
   // Temporary buffer for Blip_Buffer output
   static constexpr int TEMP_BUFFER_SIZE = 4096;
   int16_t m_tempBuffer[TEMP_BUFFER_SIZE];
+
+  // Visualizer data
+  float m_visualizerBuffers[NUM_CHANNELS][VISUALIZER_BUFFER_SIZE];
+  int m_visualizerWritePos[NUM_CHANNELS] = {0};
 };

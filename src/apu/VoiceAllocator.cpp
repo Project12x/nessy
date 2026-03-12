@@ -3,6 +3,7 @@
 
 #include "VoiceAllocator.h"
 #include "NessyAPU.h"
+#include <vector>
 
 VoiceAllocator::VoiceAllocator() { allNotesOff(); }
 
@@ -11,30 +12,33 @@ void VoiceAllocator::noteOn(int midiChannel, int noteNumber, float velocity) {
     return;
 
   // UNISON mode: trigger multiple channels at once
+  // UNISON mode: trigger multiple channels at once
   if (m_mode == Mode::UNISON) {
-    // Always use P1 + P2 for unison (both pulses)
-    int unisonChannels[] = {NessyAPU::PULSE1, NessyAPU::PULSE2};
-    int numUnison = 2;
+    // Full stack unison: Pulse 1, Pulse 2, Triangle, VRC6 P1, VRC6 P2, VRC6 Saw
+    // Excludes Noise and DMC for melodic play
+    std::vector<int> unisonChannels;
+    unisonChannels.push_back(NessyAPU::PULSE1);
+    unisonChannels.push_back(NessyAPU::PULSE2);
+    unisonChannels.push_back(NessyAPU::TRIANGLE);
 
-    // With VRC6 enabled, add VRC6 pulses for 4-voice unison
-    int unisonWithVRC6[] = {NessyAPU::PULSE1, NessyAPU::PULSE2,
-                            NessyAPU::VRC6_PULSE1, NessyAPU::VRC6_PULSE2};
     if (m_vrc6Enabled) {
-      numUnison = 4;
+      unisonChannels.push_back(NessyAPU::VRC6_PULSE1);
+      unisonChannels.push_back(NessyAPU::VRC6_PULSE2);
+      unisonChannels.push_back(NessyAPU::VRC6_SAW);
     }
 
-    int *channels = m_vrc6Enabled ? unisonWithVRC6 : unisonChannels;
-
-    for (int i = 0; i < numUnison; ++i) {
-      int ch = channels[i];
-      // Turn off existing note
-      if (m_voices[ch].noteNumber >= 0) {
-        m_apu->noteOff(ch);
+    for (int ch : unisonChannels) {
+      // Only play if channel is enabled in the UI
+      if (m_apu->isChannelEnabled(ch)) {
+        // Turn off existing note
+        if (m_voices[ch].noteNumber >= 0) {
+          m_apu->noteOff(ch);
+        }
+        m_voices[ch].noteNumber = noteNumber;
+        m_voices[ch].velocity = velocity;
+        m_voices[ch].timestamp = ++m_timestamp;
+        m_apu->noteOn(ch, noteNumber, velocity);
       }
-      m_voices[ch].noteNumber = noteNumber;
-      m_voices[ch].velocity = velocity;
-      m_voices[ch].timestamp = ++m_timestamp;
-      m_apu->noteOn(ch, noteNumber, velocity);
     }
     return;
   }

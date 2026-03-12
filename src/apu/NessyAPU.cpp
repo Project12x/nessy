@@ -2,6 +2,7 @@
 // GPL-3.0 - Uses NSFPlay cores from Dn-FamiTracker
 
 #include "NessyAPU.h"
+#include "NessyMemory.h"
 #include "blip_buffer/Blip_Buffer.h"
 #include "nsfplay/xgm/devices/Sound/nes_apu.h"
 #include "nsfplay/xgm/devices/Sound/nes_dmc.h"
@@ -9,6 +10,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <juce_core/juce_core.h>
+
+// Subclass to expose protected out buffer for visualization
+class VRC6Exposed : public xgm::NES_VRC6 {
+public:
+  const int32_t *getOut() const { return out; }
+};
 
 // NES frequency lookup table constants
 static constexpr double NES_CPU_CLOCK_NTSC = 1789772.7;
@@ -20,8 +28,9 @@ static constexpr double FREQ_A4 = 440.0;
 NessyAPU::NessyAPU() {
   m_apu1 = std::make_unique<xgm::NES_APU>();
   m_apu2 = std::make_unique<xgm::NES_DMC>();
-  m_vrc6 = std::make_unique<xgm::NES_VRC6>();
+  m_vrc6 = std::make_unique<VRC6Exposed>();
   m_blipBuffer = std::make_unique<Blip_Buffer>();
+  m_memory = std::make_unique<NessyMemory>();
 }
 
 NessyAPU::~NessyAPU() = default;
@@ -43,6 +52,7 @@ void NessyAPU::initialize(double sampleRate) {
   m_apu2->SetClock(m_clockRate);
   m_apu2->SetRate(m_sampleRate);
   m_apu2->SetAPU(m_apu1.get());
+  m_apu2->SetMemory(m_memory.get());
   m_apu2->SetPal(false); // NTSC mode
 
   // Configure VRC6
@@ -88,27 +98,54 @@ int NessyAPU::process(float *leftOutput, float *rightOutput, int numSamples) {
       clockAPU(clocksToRun);
     }
 
-    // Get mixed output from base APU
-    int32_t out[2] = {0, 0};
-    m_apu1->Render(out);
+    // converting to float and recording per-channel
+    auto recordVisualizer = [&](int channel, int32_t output, float scale) {
+      float sample = static_cast<float>(output) / scale;
+      // Center the unipolar signal (0..1 -> -1..1) for better scope
+      // visualization
+      sample = (sample * 2.0f) - 1.0f;
+      m_visualizerBuffers[channel][m_visualizerWritePos[channel]] = sample;
+      m_visualizerWritePos[channel] =
+          (m_visualizerWritePos[channel] + 1) % VISUALIZER_BUFFER_SIZE;
+    };
 
-    int32_t out2[2] = {0, 0};
-    m_apu2->Render(out2);
-    out[0] += out2[0];
+    // NSFPlay cores store individual outputs in m_apu1->out, m_apu2->out, etc.
+    recordVisualizer(PULSE1, m_apu1->out[0], 15.0f);
+    recordVisualizer(PULSE2, m_apu1->out[1], 15.0f);
+    recordVisualizer(TRIANGLE, m_apu2->out[0], 15.0f);
+    recordVisualizer(NOISE, m_apu2->out[1], 15.0f);
+    recordVisualizer(DMC, m_apu2->out[2], 127.0f);
 
-    // Add VRC6 output if enabled
     if (m_vrc6Enabled) {
-      int32_t vrc6Out[2] = {0, 0};
-      m_vrc6->Render(vrc6Out);
-      out[0] += vrc6Out[0];
+      auto *vrc6 = static_cast<VRC6Exposed *>(m_vrc6.get());
+      const int32_t *vrc6Out = vrc6->getOut();
+      recordVisualizer(VRC6_PULSE1, vrc6Out[0], 15.0f);
+      recordVisualizer(VRC6_PULSE2, vrc6Out[1], 15.0f);
+      recordVisualizer(VRC6_SAW, vrc6Out[2], 42.0f); // Saw accumulator max ~42
     }
 
-    // Convert to float [-1, 1]
-    float sample = static_cast<float>(out[0]) / 8192.0f;
-    sample = std::clamp(sample, -1.0f, 1.0f);
+    // Mix for output
+    // Use Render() to get proper non-linear mixed levels (approx 16-bit range)
+    int32_t bufferPulse[2] = {0};
+    int32_t bufferTND[2] = {0};
+    int32_t bufferVRC6[2] = {0};
 
-    leftOutput[samplesGenerated] = sample;
-    rightOutput[samplesGenerated] = sample;
+    m_apu1->Render(bufferPulse); // Pulse 1 + 2
+    m_apu2->Render(bufferTND);   // Triangle + Noise + DMC
+
+    int32_t mixed = bufferPulse[0] + bufferTND[0];
+
+    if (m_vrc6Enabled) {
+      m_vrc6->Render(bufferVRC6);
+      mixed += bufferVRC6[0];
+    }
+
+    // Output is roughly 16-bit range, jlimit just in case
+    // Dividing by 32768.0f gives us the -1.0 to 1.0 range
+    float finalSample =
+        juce::jlimit(-1.0f, 1.0f, static_cast<float>(mixed) / 32768.0f);
+    leftOutput[samplesGenerated] = finalSample;
+    rightOutput[samplesGenerated] = finalSample;
     ++samplesGenerated;
   }
 
@@ -159,13 +196,34 @@ void NessyAPU::noteOn(int channel, int midiNote, float velocity) {
   }
   case NOISE: {
     writeRegister(0x400C, 0x30 | volume);
-    uint8_t noisePeriod = std::clamp(15 - (midiNote / 8), 0, 15);
+    uint8_t noisePeriod = juce::jlimit(0, 15, 15 - (midiNote / 8));
     uint8_t mode = m_noiseShortMode ? 0x80 : 0x00;
     writeRegister(0x400E, mode | noisePeriod);
     writeRegister(0x400F, 0xF8);
     break;
   }
   case DMC:
+    // DMC Trigger: Play "Kick" sample at $C000
+    writeRegister(0x4010, 0x0F); // Rate F (Highest)
+    writeRegister(0x4012, 0x00); // Address $C000
+    writeRegister(0x4013, 0x08); // Length
+
+    {
+      // Toggle DMC enable bit to restart sample if needed
+      uint8_t status = 0;
+      if (m_channelEnabled[PULSE1])
+        status |= 0x01;
+      if (m_channelEnabled[PULSE2])
+        status |= 0x02;
+      if (m_channelEnabled[TRIANGLE])
+        status |= 0x04;
+      if (m_channelEnabled[NOISE])
+        status |= 0x08;
+
+      writeRegister(0x4015, status); // Disable DMC
+      status |= 0x10;                // Enable DMC
+      writeRegister(0x4015, status); // Trigger
+    }
     break;
 
   // VRC6 expansion channels
@@ -279,7 +337,7 @@ void NessyAPU::setNoiseMode(bool shortMode) {
   m_noiseShortMode = shortMode;
 
   if (m_currentNote[NOISE] >= 0) {
-    uint8_t noisePeriod = std::clamp(15 - (m_currentNote[NOISE] / 8), 0, 15);
+    uint8_t noisePeriod = juce::jlimit(0, 15, 15 - (m_currentNote[NOISE] / 8));
     uint8_t mode = shortMode ? 0x80 : 0x00;
     writeRegister(0x400E, mode | noisePeriod);
   }
@@ -287,6 +345,11 @@ void NessyAPU::setNoiseMode(bool shortMode) {
 
 void NessyAPU::setVRC6Enabled(bool enabled) {
   m_vrc6Enabled = enabled;
+  // Auto-enable/disable individual VRC6 channels
+  m_channelEnabled[VRC6_PULSE1] = enabled;
+  m_channelEnabled[VRC6_PULSE2] = enabled;
+  m_channelEnabled[VRC6_SAW] = enabled;
+
   if (!enabled) {
     // Silence all VRC6 channels
     m_vrc6->Write(0x9002, 0x00);
@@ -298,7 +361,7 @@ void NessyAPU::setVRC6Enabled(bool enabled) {
 void NessyAPU::setVRC6PulseDuty(int pulseChannel, int duty) {
   if (pulseChannel < 0 || pulseChannel > 1)
     return;
-  m_vrc6PulseDuty[pulseChannel] = std::clamp(duty, 0, 7);
+  m_vrc6PulseDuty[pulseChannel] = juce::jlimit(0, 7, duty);
 }
 
 double NessyAPU::getChannelFrequency(int channel) const {
@@ -326,5 +389,5 @@ uint16_t NessyAPU::midiToPeriod(int midiNote, int channel) const {
 
   // VRC6 has 12-bit period, base NES has 11-bit
   double maxPeriod = (channel >= VRC6_PULSE1) ? 4095.0 : 2047.0;
-  return static_cast<uint16_t>(std::clamp(period, 0.0, maxPeriod));
+  return static_cast<uint16_t>(juce::jlimit(0.0, maxPeriod, period));
 }
