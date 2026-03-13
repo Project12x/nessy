@@ -14,6 +14,7 @@ class NES_VRC6;
 } // namespace xgm
 class Blip_Buffer;
 class NessyMemory;
+class MacroEngine;
 template <int quality> class Blip_Synth;
 
 class NessyAPU {
@@ -79,8 +80,16 @@ public:
     return m_visualizerBuffers[channel];
   }
 
-  // Direct register access (for advanced use)
+  // Direct register access (used by MacroEngine)
   void writeRegister(uint16_t address, uint8_t value);
+
+  // MacroEngine helpers
+  void writeNoteRegisters(int channel, int midiNote);
+  void writePitchOffset(int channel, int periodOffset);
+  uint8_t getPulseDutyReg(int pulseIndex) const;
+
+  // Macro preset control (MacroPreset enum is in MacroEngine.h)
+  void setMacroPreset(int channel, int presetId); // presetId = MacroPreset int
 
 private:
   uint16_t midiToPeriod(int midiNote, int channel) const;
@@ -96,6 +105,11 @@ private:
 
   // Virtual memory for DMC samples
   std::unique_ptr<NessyMemory> m_memory;
+
+  // Macro engine (60Hz register sequencer)
+  std::unique_ptr<MacroEngine> m_macroEngine;
+  double m_macroClockAccumulator = 0.0;
+  static constexpr double MACRO_CLOCKS = 1789772.7 / 60.0; // ~29830 clocks
 
   // Sample rate and timing
   double m_sampleRate = 44100.0;

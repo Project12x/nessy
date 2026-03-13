@@ -36,6 +36,7 @@ juce_add_binary_data(NessyFonts
         src/resources/fonts/Inter-Regular.ttf
         src/resources/fonts/Inter-Bold.ttf
         src/resources/fonts/PressStart2P-Regular.ttf
+        src/resources/images/background.png
 )
 
 # Source files
@@ -47,6 +48,7 @@ target_sources(Nessy
         # NessyAPU wrapper
         src/apu/NessyAPU.cpp
         src/apu/VoiceAllocator.cpp
+        src/apu/MacroEngine.cpp
         
         # Blip_Buffer (LGPL - bandlimited synthesis)
         src/apu/blip_buffer/Blip_Buffer.cpp
@@ -74,6 +76,7 @@ target_link_libraries(Nessy
         juce::juce_audio_utils
         juce::juce_audio_processors
         juce::juce_dsp
+        juce::juce_core
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

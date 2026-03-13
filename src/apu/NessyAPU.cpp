@@ -3,6 +3,7 @@
 
 #include "NessyAPU.h"
 #include "NessyMemory.h"
+#include "MacroEngine.h"
 #include "blip_buffer/Blip_Buffer.h"
 #include "nsfplay/xgm/devices/Sound/nes_apu.h"
 #include "nsfplay/xgm/devices/Sound/nes_dmc.h"
@@ -26,11 +27,13 @@ static constexpr int MIDI_A4 = 69;
 static constexpr double FREQ_A4 = 440.0;
 
 NessyAPU::NessyAPU() {
-  m_apu1 = std::make_unique<xgm::NES_APU>();
-  m_apu2 = std::make_unique<xgm::NES_DMC>();
-  m_vrc6 = std::make_unique<VRC6Exposed>();
-  m_blipBuffer = std::make_unique<Blip_Buffer>();
-  m_memory = std::make_unique<NessyMemory>();
+  m_apu1        = std::make_unique<xgm::NES_APU>();
+  m_apu2        = std::make_unique<xgm::NES_DMC>();
+  m_vrc6        = std::make_unique<VRC6Exposed>();
+  m_blipBuffer  = std::make_unique<Blip_Buffer>();
+  m_memory      = std::make_unique<NessyMemory>();
+  m_macroEngine = std::make_unique<MacroEngine>();
+  m_macroEngine->setAPU(this);
 }
 
 NessyAPU::~NessyAPU() = default;
@@ -169,9 +172,14 @@ void NessyAPU::clockAPU(int cpuClocks) {
   m_apu1->Tick(cpuClocks);
   m_apu2->Tick(cpuClocks);
 
-  // Clock VRC6 if enabled
-  if (m_vrc6Enabled) {
+  if (m_vrc6Enabled)
     m_vrc6->Tick(cpuClocks);
+
+  // Macro engine: fire at ~60Hz (one NES frame)
+  m_macroClockAccumulator += cpuClocks;
+  if (m_macroClockAccumulator >= MACRO_CLOCKS) {
+    m_macroClockAccumulator -= MACRO_CLOCKS;
+    m_macroEngine->tick();
   }
 }
 
@@ -181,6 +189,9 @@ void NessyAPU::noteOn(int channel, int midiNote, float velocity) {
 
   m_currentNote[channel] = midiNote;
   m_velocity[channel] = velocity;
+
+  // Notify macro engine so it can reset sequence positions
+  m_macroEngine->noteOn(channel, midiNote, velocity);
 
   uint16_t period = midiToPeriod(midiNote, channel);
   uint8_t volume = static_cast<uint8_t>(velocity * 15.0f);
@@ -275,6 +286,8 @@ void NessyAPU::noteOff(int channel) {
 
   m_currentNote[channel] = -1;
   m_velocity[channel] = 0.0f;
+
+  m_macroEngine->noteOff(channel);
 
   switch (channel) {
   case PULSE1:
@@ -388,6 +401,72 @@ double NessyAPU::getChannelFrequency(int channel) const {
 void NessyAPU::writeRegister(uint16_t address, uint8_t value) {
   m_apu1->Write(address, value);
   m_apu2->Write(address, value);
+}
+
+// ---------------------------------------------------------------------------
+// MacroEngine helpers
+// ---------------------------------------------------------------------------
+
+// Rewrite the period registers for a channel (used by arpeggio macro)
+void NessyAPU::writeNoteRegisters(int channel, int midiNote) {
+  uint16_t period = midiToPeriod(midiNote, channel);
+  switch (channel) {
+  case PULSE1:
+    writeRegister(0x4002, period & 0xFF);
+    writeRegister(0x4003, (period >> 8) & 0x07);
+    break;
+  case PULSE2:
+    writeRegister(0x4006, period & 0xFF);
+    writeRegister(0x4007, (period >> 8) & 0x07);
+    break;
+  case TRIANGLE:
+    writeRegister(0x400A, period & 0xFF);
+    writeRegister(0x400B, (period >> 8) & 0x07);
+    break;
+  case VRC6_PULSE1:
+    m_vrc6->Write(0x9001, period & 0xFF);
+    m_vrc6->Write(0x9002, 0x80 | ((period >> 8) & 0x0F));
+    break;
+  case VRC6_PULSE2:
+    m_vrc6->Write(0xA001, period & 0xFF);
+    m_vrc6->Write(0xA002, 0x80 | ((period >> 8) & 0x0F));
+    break;
+  case VRC6_SAW:
+    m_vrc6->Write(0xB001, period & 0xFF);
+    m_vrc6->Write(0xB002, 0x80 | ((period >> 8) & 0x0F));
+    break;
+  default: break;
+  }
+}
+
+// Add a signed period offset (fine pitch macro)
+void NessyAPU::writePitchOffset(int channel, int periodOffset) {
+  if (m_currentNote[channel] < 0) return;
+  uint16_t base   = midiToPeriod(m_currentNote[channel], channel);
+  int adjusted    = static_cast<int>(base) + periodOffset;
+  adjusted        = juce::jlimit(0, 0x7FF, adjusted);
+  uint16_t period = static_cast<uint16_t>(adjusted);
+
+  switch (channel) {
+  case PULSE1:   writeRegister(0x4002, period & 0xFF); writeRegister(0x4003, (period >> 8) & 0x07); break;
+  case PULSE2:   writeRegister(0x4006, period & 0xFF); writeRegister(0x4007, (period >> 8) & 0x07); break;
+  case TRIANGLE: writeRegister(0x400A, period & 0xFF); writeRegister(0x400B, (period >> 8) & 0x07); break;
+  case VRC6_PULSE1: m_vrc6->Write(0x9001, period & 0xFF); m_vrc6->Write(0x9002, 0x80 | ((period >> 8) & 0x0F)); break;
+  case VRC6_PULSE2: m_vrc6->Write(0xA001, period & 0xFF); m_vrc6->Write(0xA002, 0x80 | ((period >> 8) & 0x0F)); break;
+  case VRC6_SAW:    m_vrc6->Write(0xB001, period & 0xFF); m_vrc6->Write(0xB002, 0x80 | ((period >> 8) & 0x0F)); break;
+  default: break;
+  }
+}
+
+// Return the current pulse duty register value (D7:D6 of $4000/$4004)
+uint8_t NessyAPU::getPulseDutyReg(int pulseIndex) const {
+  return static_cast<uint8_t>(m_pulseDuty[pulseIndex]) & 0x03;
+}
+
+// Set macro preset for a channel
+void NessyAPU::setMacroPreset(int channel, int presetId) {
+  m_macroEngine->setPreset(channel,
+      static_cast<MacroPreset>(presetId));
 }
 
 uint16_t NessyAPU::midiToPeriod(int midiNote, int channel) const {
