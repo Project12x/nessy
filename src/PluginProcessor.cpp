@@ -65,6 +65,20 @@ createParameterLayout() {
                         "43.75%", "50%"},
       7));
 
+  // Macro presets per channel
+  juce::StringArray macroPresetNames{
+      "None", "Plain", "Vibrato", "Vol Decay",
+      "Arp Maj", "Arp Min", "Duty Sweep", "Stab"};
+  const char* macroIds[] = {
+      "macroPulse1", "macroPulse2", "macroTri", "macroNoise",
+      "macroVrc6P1", "macroVrc6P2", "macroVrc6Saw"};
+  const char* macroNames[] = {
+      "Pulse 1 Macro", "Pulse 2 Macro", "Triangle Macro", "Noise Macro",
+      "VRC6 P1 Macro", "VRC6 P2 Macro", "VRC6 Saw Macro"};
+  for (int i = 0; i < 7; ++i)
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID(macroIds[i], 1), macroNames[i], macroPresetNames, 0));
+
   return layout;
 }
 
@@ -171,6 +185,17 @@ void NessyAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
       parameters.getRawParameterValue("vrc6Enable")->load() > 0.5f;
   voiceAllocator->setVRC6Enabled(vrc6Enabled);
   apu->setVRC6Enabled(vrc6Enabled);
+
+  // Sync macro presets per channel
+  const char* macroIds[] = {
+      "macroPulse1", "macroPulse2", "macroTri", "macroNoise",
+      "macroVrc6P1", "macroVrc6P2", "macroVrc6Saw"};
+  const int macroChannels[] = {
+      NessyAPU::PULSE1, NessyAPU::PULSE2, NessyAPU::TRIANGLE, NessyAPU::NOISE,
+      NessyAPU::VRC6_PULSE1, NessyAPU::VRC6_PULSE2, NessyAPU::VRC6_SAW};
+  for (int i = 0; i < 7; ++i)
+    apu->setMacroPreset(macroChannels[i],
+        static_cast<int>(parameters.getRawParameterValue(macroIds[i])->load()));
 
   // Add virtual keyboard events to the MIDI buffer
   keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
