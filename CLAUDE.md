@@ -51,7 +51,8 @@ NSFPlay cores clock at 1,789,772.7 Hz (NTSC). Blip_Buffer resamples to host rate
 | File | Role |
 |---|---|
 | `src/PluginProcessor.h/cpp` | JUCE AudioProcessor, APVTS parameter tree, DSP chain |
-| `src/PluginEditor.h/cpp` | ghostmoon UI controls, oscilloscopes, timer callbacks |
+| `src/PluginEditor.h/cpp` | NES Front-Loader UI: juce:: controls + themes + scopes |
+| `src/NessyUI.h` | `nessy::NessyLookAndFeel` (NES skin) + `nessy::NessyScope` |
 | `src/apu/NessyAPU.h/cpp` | Main APU wrapper; register writes, mixing, Blip_Buffer |
 | `src/apu/VoiceAllocator.h/cpp` | MIDI→channel demuxing, 3 allocation modes |
 | `src/apu/MacroEngine.h/cpp` | 60 Hz hardware macro sequencer |
@@ -62,11 +63,9 @@ NSFPlay cores clock at 1,789,772.7 Hz (NTSC). Blip_Buffer resamples to host rate
 
 ## UI Framework
 
-All UI uses **ghostmoon** (`../ghostmoon/ui`), a sibling repo. Use `gm::` components for any new controls — never raw JUCE components. Check ghostmoon's component catalog before reaching for JUCE directly.
+Nessy is **GPL-3.0** (NSFPlay forces it), so it must **not** link the proprietary `ghostmoon`. The UI is Nessy's own NES "Front-Loader" skin: custom `paint()` chrome + stock `juce::` controls styled by `nessy::NessyLookAndFeel` (`src/NessyUI.h`), wired to APVTS. Skin-neutral scaffolding comes from **ghostmoon-oss** (sibling repo, MIT): `gm::ui::ScaledEditor`, `gm::ui::Oscilloscope`, and the DSP utils. Do **not** add `gm::` *control widgets* (Knob/ComboSelector/…) — draw primitives are per-skin; Nessy keeps its own paint.
 
-Current controls: `gm::Knob`, `gm::GmToggleButton`, `gm::ComboSelector`, `gm::HSlider`, `gm::Oscilloscope`.
-
-Oscilloscopes are zero-crossing triggered, double-buffered, 512-sample buffers, driven by a 60 Hz timer in the editor.
+Controls: `juce::Slider` (volume dial, split/glide) + `juce::ComboBox` (duty/macro/arp/sweep) styled by `NessyLookAndFeel`; channel ON/OFF, NSE mode, and sweep enables are painted hit-tested toggles. Scopes: `nessy::NessyScope` wraps `gm::ui::Oscilloscope` (zero-cross triggered, double-buffered, 512-sample), drawn in the NES skin and fed by a 60 Hz editor timer.
 
 ## Parameters (APVTS)
 
@@ -77,7 +76,7 @@ Parameters are declared in `PluginProcessor.cpp` and accessed via `getAPVTS()`. 
 - **JUCE 8.0.4** — fetched via CPM at configure time (read-only)
 - **NSFPlay cores** — vendored in `src/apu/nsfplay/` (read-only)
 - **Blip_Buffer** — vendored in `src/apu/blip_buffer/` (read-only)
-- **ghostmoon_dsp / ghostmoon_ui** — sibling repo at `../ghostmoon/`
+- **ghostmoon-oss** — sibling repo (folder `../ghostmoongpl`); link `ghostmoon_oss::dsp` + `ghostmoon_oss::core` (MIT). GPL-compatible. Do NOT link the proprietary `ghostmoon`. See `THIRD_PARTY_LICENSES.md`.
 
 C++20 required. Windows + Visual Studio 2022 is the tested platform.
 

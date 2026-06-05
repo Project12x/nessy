@@ -17,9 +17,12 @@ CPMAddPackage(
         "JUCE_BUILD_EXTRAS OFF"
 )
 
-# ghostmoon framework (sibling repo)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../ghostmoon/dsp ghostmoon_dsp_build)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../ghostmoon/ui ghostmoon_ui_build)
+# ghostmoon-oss (sibling repo) — the distributable, GPL-compatible slice of
+# Ghostmoon (MIT first-party + LGPL-2.1 ReverbSC). Nessy is GPL-3.0 (NSFPlay) and
+# must NOT link the proprietary ghostmoon. Folder is still named ghostmoongpl.
+set(GHOSTMOON_OSS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../ghostmoongpl"
+    CACHE PATH "Path to the ghostmoon-oss repository")
+add_subdirectory(${GHOSTMOON_OSS_DIR} ghostmoon_oss_build)
 
 # Nessy VST Plugin
 juce_add_plugin(Nessy
@@ -78,8 +81,8 @@ target_include_directories(Nessy
 target_link_libraries(Nessy
     PRIVATE
         NessyFonts
-        ghostmoon_dsp
-        ghostmoon_ui
+        ghostmoon_oss::dsp
+        ghostmoon_oss::core
         juce::juce_audio_utils
         juce::juce_audio_processors
         juce::juce_dsp

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Nessy is a JUCE 8 VST3/Standalone plugin that emulates the NES 2A03 APU (and VRC6 expansion chip) with accurate hardware timing. It uses the NSFPlay emulation cores extracted from Dn-FamiTracker (GPL-3.0). The UI is built on the ghostmoon framework (`ghostmoon_ui`) for consistent controls, theming, and maintainability across projects.
+Nessy is a JUCE 8 VST3/Standalone plugin that emulates the NES 2A03 APU (and VRC6 expansion chip) with accurate hardware timing. It uses the NSFPlay emulation cores extracted from Dn-FamiTracker (GPL-3.0), which makes the whole plugin **GPL-3.0**. The UI is Nessy's own NES "Front-Loader" skin (custom `paint()` + `juce::` controls styled by `NessyLookAndFeel`); skin-neutral scaffolding (`ScaledEditor`, `Oscilloscope`, DSP utils) comes from the MIT **ghostmoon-oss** sibling repo. Nessy does **not** link the proprietary `ghostmoon` (a proprietary dep can't ship in a GPL binary).
 
 ## Component Diagram
 
@@ -23,7 +23,7 @@ NessyAPU
   └─ NessyMemory ($8000–$FFFF DPCM bank)
     │
     ▼ (per-channel raw out[])
-gm::Oscilloscope × 7 (push-based via timerCallback)
+NessyScope × 8 (wraps gm::ui::Oscilloscope; push-based via timerCallback)
 ```
 
 ## Data Flow
@@ -33,7 +33,7 @@ gm::Oscilloscope × 7 (push-based via timerCallback)
 3. **NessyAPU → NSFPlay registers**: Writes 2A03/VRC6 hardware registers (e.g., $4000, $9000).
 4. **NSFPlay → Audio**: Each `process()` call clocks APU cores at NTSC rate (1,789,772.7 Hz) and interpolates to host sample rate. `Render()` returns a ~16-bit mixed stereo buffer.
 5. **Audio Mix**: `bufferPulse + bufferTND [+ bufferVRC6]` → normalised to float -1..1.
-6. **Visualizer tap**: Raw per-channel `out[]` values sampled each clock into ring buffers, pushed to `gm::Oscilloscope::process()` from editor `timerCallback()` at 60 Hz.
+6. **Visualizer tap**: Raw per-channel `out[]` values sampled each clock into ring buffers, pushed to `gm::ui::Oscilloscope::process()` (via `NessyScope`) from editor `timerCallback()` at 60 Hz.
 
 ## APU Timing
 
@@ -67,8 +67,7 @@ The NES CPU runs at ~1.789 MHz (NTSC). Each audio sample = ~40.6 CPU clocks at 4
 ## Build System
 
 - CMake 3.24+, C++20, JUCE 8.0.4, CPM package manager
-- ghostmoon_ui linked as sibling subdirectory (`../ghostmoon/ui`)
-- melatonin_blur (GPU shadows/glow) via ghostmoon_ui transitive dependency
+- ghostmoon-oss linked as sibling subdirectory (`../ghostmoongpl`; targets `ghostmoon_oss::dsp` + `::core`, MIT). The proprietary `ghostmoon` is NOT linked.
 - Targets: `Nessy` (VST3), `Nessy_Standalone`
 - NSFPlay sources compiled directly (no library; source in `src/apu/nsfplay/`)
 - Fonts embedded via `juce_add_binary_data` (Inter, Press Start 2P, background PNG)

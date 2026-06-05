@@ -11,19 +11,16 @@ Format: [keepachangelog.com](https://keepachangelog.com/en/1.0.0/)
 - **Standalone arpeggiator** — held-note arpeggiator (Up/Down/UpDown/Random, 1–4 octaves) ticked at 60 Hz and routed through the active voice-allocation mode; adapted from the Breadbin SID synth
 - **Hardware pitch sweep (Pulse 1 & 2)** — manual sweep-unit config exposing $4001/$4005: enable, direction, rate, shift
 - **Portamento / glide** — period-interpolated note glide via MacroEngine (enable + speed)
-- **ghostmoon UI framework adoption** — all controls now use `gm::Knob`, `gm::GmToggleButton`, `gm::ComboSelector`, `gm::HSlider`, `gm::Oscilloscope`
-- Right-click context menus on all controls (Copy/Paste value, Set to Default, MIDI Learn ready)
-- Double-click text entry on knob and sliders
-- Hover/focus visual states on all controls
-- Zero-crossing-triggered oscilloscopes with glow pass (replaced 64-segment blocky scopes)
-- melatonin_blur GPU-accelerated shadows/glow via ghostmoon_ui dependency
+- **Front-Loader NES UI redesign** — full editor rebuild at 1040×508 (`gm::ui::ScaledEditor`): tiled PCB chassis, louvered header, NES-controller gamepad cluster (Voice/Arp/Porta/Split), channel-bay faceplates with CRT-glass oscilloscopes, painted channel ON/OFF toggles, and three persistent themes (NES / Famicom / FDS)
+- **Removed proprietary ghostmoon; migrated to ghostmoon-oss (MIT)** — Nessy is GPL-3.0 (NSFPlay) and may not ship proprietary code. Controls are stock `juce::` widgets styled by Nessy's own NES `NessyLookAndFeel`; the skin-neutral DSP utils + `gm::ui::ScaledEditor` + `gm::ui::Oscilloscope` come from the new MIT **ghostmoon-oss**. Added `THIRD_PARTY_LICENSES.md`
+- **`dmcEnable` parameter** — DMC channel is now toggleable; base-channel enables (P1/P2/TRI/NSE/DMC) sync to the APU live, not only at load
+- Zero-crossing-triggered oscilloscopes (512-sample, double-buffered)
 - C++20 standard (upgraded from C++17)
 
 ### Changed
 
-- Removed custom `ChannelOscilloscope` class — replaced by `gm::Oscilloscope` (push-based, double-buffered)
-- Oscilloscope data feed moved from pull-in-paint to push-in-timerCallback via `gm::Oscilloscope::process()`
-- All APVTS attachments now managed internally by ghostmoon components (eliminated ~40 manual attachment members)
+- Removed custom `ChannelOscilloscope` — scopes now use the skin-neutral `gm::ui::Oscilloscope` (ghostmoon-oss) drawn by `NessyScope`, fed push-style from the editor's 60 Hz timer
+- APVTS control wiring via juce attachments (`SliderAttachment` / `ComboBoxAttachment`) in the editor
 
 ### Fixed
 

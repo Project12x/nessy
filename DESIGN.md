@@ -17,7 +17,7 @@ board, each with a CRT-glass oscilloscope.
 ## Artboard & scaling
 
 - Base resolution **1040 × 508** (fixed aspect ≈ 2.047:1).
-- `gm::ScaledEditor(processor, 1040, 508)`; layout/paint always at 1040×508.
+- `gm::ui::ScaledEditor(processor, 1040, 508)` (ghostmoon-oss, MIT); layout/paint always at 1040×508.
 - Resizable with **locked aspect ratio** (`ComponentBoundsConstrainer::setFixedAspectRatio(1040.0/508.0)`); `setScale(width/1040)`.
 
 ## Typography
@@ -93,19 +93,20 @@ explicit user note). NES red, plastic greys, charcoal, ink are constants:
 
 | UI element | Component | Notes |
 |---|---|---|
-| Volume dial | `gm::Knob` (`KnobStyle::Knurled`) | the single tactile control |
-| Channel ON/OFF | `gm::GmToggleButton` | LED-style, channel-colored |
-| Readout / duty | `gm::ComboSelector` (pulse/VRC6 duty) or painted static (TRI/DMC) | duty woven in as the readout |
-| Noise mode | `gm::ComboSelector` (Long/Short) | NSE readout row |
-| MAC macro | `gm::ComboSelector` | 8 presets |
-| Oscilloscope | `gm::Oscilloscope` | in CRT-glass window |
-| Voice / Arp / Porta / Split | `gm::ComboSelector` / `gm::GmToggleButton` / `gm::HSlider` | header cluster |
-| Hardware sweep (P1/P2) | `gm::GmToggleButton` + `gm::ComboSelector` | **woven into the P1/P2 channel strips** (sweep is a per-pulse feature) |
+| Volume dial | `juce::Slider` (rotary) + `NessyLookAndFeel` | the single tactile control |
+| Channel ON/OFF | painted hit-tested toggle (channel LED + ON/OFF) | per-strip enable |
+| Readout / duty | `juce::ComboBox` (pulse/VRC6 duty) or painted static (TRI/DMC/SAW) | duty woven in as the readout |
+| Noise mode | painted hit-tested LONG/SHORT toggle | NSE readout row |
+| MAC macro | `juce::ComboBox` (8 presets) | macro chip |
+| Oscilloscope | `nessy::NessyScope` wrapping `gm::ui::Oscilloscope` | trace drawn in the CRT-glass window |
+| Voice / Arp / Porta / Split | painted gamepad cluster (hit-tested) | header |
+| Granular PATTERN/OCT/SPLIT/GLIDE | `juce::ComboBox` / `juce::Slider` + `NessyLookAndFeel` | control rail |
+| Hardware sweep (P1/P2) | painted SWEEP toggle + `juce::ComboBox` (dir/rate/shf) | **woven into the P1/P2 strips** |
 | SYSTEM theme switch | custom 3-segment | persisted to APVTS state property `uiTheme` |
 
-**Theming model:** per-instance `setColour(...)` on each gm component (NOT
-ThemeManager — keep it untouched so it never clobbers our colours). On theme
-switch: swap the active `NessyTheme`, re-run all `setColour` calls, `repaint()`.
+**Theming model:** per-instance `setColour(...)` on each juce control (juce
+ColourIds, read by `NessyLookAndFeel`). On theme switch: swap the active
+`NessyTheme`, re-apply the `setColour` calls + scope trace colours, `repaint()`.
 Custom `paint()` chrome reads from the active `NessyTheme` struct.
 
 ## Staged implementation plan

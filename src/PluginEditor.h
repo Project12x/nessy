@@ -1,24 +1,19 @@
 #pragma once
 
 #include "PluginProcessor.h"
+#include "NessyUI.h" // Nessy NES LookAndFeel + scope (replaces proprietary gm:: widgets)
 #include "apu/NessyAPU.h"
+#include <ghostmoon/ui/ScaledEditor.h> // gm::ui::ScaledEditor (ghostmoon-oss, MIT)
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <array>
 #include <memory>
-
-// ghostmoon UI catalog
-#include <Knob.h>
-#include <GmToggleButton.h>
-#include <ComboSelector.h>
-#include <HSlider.h>
-#include <Oscilloscope.h>
-#include <ScaledEditor.h>
+#include <vector>
 
 // ---------------------------------------------------------------------------
 // NessyTheme — one hardware skin (NES / Famicom / FDS).
 // Tokens mirror nessy.css :root + data-theme variables (see DESIGN.md).
-// Paint chrome reads from the active theme; gm components are recoloured via
-// per-instance setColour on each theme switch (ThemeManager is left untouched).
+// Paint chrome reads from the active theme; juce controls are recoloured via
+// per-instance setColour on each theme switch.
 // ---------------------------------------------------------------------------
 struct NessyTheme {
   juce::String name;        // "NES" / "FC" / "FDS"
@@ -39,7 +34,7 @@ struct NessyTheme {
   static NessyTheme byIndex(int i); // 0=NES 1=FC 2=FDS
 };
 
-class NessyAudioProcessorEditor : public gm::ScaledEditor, private juce::Timer {
+class NessyAudioProcessorEditor : public gm::ui::ScaledEditor, private juce::Timer {
 public:
   explicit NessyAudioProcessorEditor(NessyAudioProcessor &);
   ~NessyAudioProcessorEditor() override;
@@ -57,8 +52,8 @@ private:
   void timerCallback() override;
 
   // Theme handling
-  void setTheme(int index);     // swap palette, re-skin gm components, repaint
-  void applyThemeToControls();  // push current theme colours into gm components
+  void setTheme(int index);     // swap palette, re-skin controls, repaint
+  void applyThemeToControls();  // push current theme colours into juce controls
   const NessyTheme &theme() const { return currentTheme; }
 
   // Geometry shared by paint() + resizedContent()
@@ -76,38 +71,30 @@ private:
   void drawGamepad(juce::Graphics &g);
 
   NessyAudioProcessor &processorRef;
+  nessy::NessyLookAndFeel lnf; // declared first → destroyed after the controls
 
   NessyTheme currentTheme;
   int themeIndex = 0;
 
-  // --- Controls (APVTS-bound gm components) ---
-  std::unique_ptr<gm::Knob> masterVolume;
+  // --- Controls: stock juce widgets styled by the NES LookAndFeel ---
+  // Channel ON/OFF, NSE Long/Short, and the P1/P2 SWEEP enables are stylized
+  // PAINTED toggles (channel-coloured LED + label), drawn in paint() and
+  // hit-tested in mouseDown — not widgets.
 
-  // Per-strip enable toggles (P1 P2 TRI NSE have params; DMC/VRC6 handled below)
-  // Channel ON/OFF toggles are stylized painted controls (channel-colored LED +
-  // ON/OFF) drawn in paint() and hit-tested in mouseDown — not gm components.
-  // Each strip's enable param: P1/P2/TRI/NSE own; DMC = dmcEnable; VRC6 trio = vrc6Enable.
-
-  // Readout-row controls
-  std::unique_ptr<gm::ComboSelector> pulse1Duty, pulse2Duty;
-  std::unique_ptr<gm::ComboSelector> vrc6Pulse1Duty, vrc6Pulse2Duty;
-  std::unique_ptr<gm::GmToggleButton> noiseModeToggle; // NSE readout (Long/Short)
-
-  // Macro chips — index order P1 P2 TRI NSE VRC6P1 VRC6P2 SAW (DMC has none)
-  std::array<std::unique_ptr<gm::ComboSelector>, 7> macroBoxes;
-
-  // Global cluster: Voice/Arp/Porta/Split are the painted gamepad (header);
-  // the granular controls live in the rail.
-  std::unique_ptr<gm::ComboSelector> arpPattern, arpOctaves;
-  std::unique_ptr<gm::HSlider> splitPoint, portamentoSpeed;
-
-  // Hardware sweep, woven into the P1/P2 strips
-  std::array<std::unique_ptr<gm::GmToggleButton>, 2> sweepEnables;
-  std::array<std::unique_ptr<gm::ComboSelector>, 2> sweepDirs, sweepRates,
-      sweepShifts;
+  std::unique_ptr<juce::Slider> masterVolume;            // rotary
+  std::unique_ptr<juce::ComboBox> pulse1Duty, pulse2Duty;
+  std::unique_ptr<juce::ComboBox> vrc6Pulse1Duty, vrc6Pulse2Duty;
+  std::array<std::unique_ptr<juce::ComboBox>, 7> macroBoxes; // P1 P2 TRI NSE VP1 VP2 SAW (no DMC)
+  std::unique_ptr<juce::ComboBox> arpPattern, arpOctaves;
+  std::unique_ptr<juce::Slider> splitPoint, portamentoSpeed; // linear
+  std::array<std::unique_ptr<juce::ComboBox>, 2> sweepDirs, sweepRates, sweepShifts;
 
   // Per-strip oscilloscopes (strip index == NessyAPU channel index)
-  std::array<std::unique_ptr<gm::Oscilloscope>, kNumStrips> scopes;
+  std::array<std::unique_ptr<nessy::NessyScope>, kNumStrips> scopes;
+
+  // APVTS attachments (keep alive for the controls' lifetime)
+  std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> sliderAtts;
+  std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>> comboAtts;
 
   juce::MidiKeyboardComponent keyboard;
   juce::Image backgroundImage;

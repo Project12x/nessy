@@ -211,7 +211,7 @@ Rows rowsFor(juce::Rectangle<int> s, bool hasSweep) {
 // Editor
 // ===========================================================================
 NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
-    : gm::ScaledEditor(p, kBaseW, kBaseH), processorRef(p),
+    : gm::ui::ScaledEditor(p, kBaseW, kBaseH), processorRef(p),
       currentTheme(NessyTheme::nes()),
       keyboard(p.getKeyboardState(),
                juce::MidiKeyboardComponent::horizontalKeyboard) {
@@ -219,35 +219,41 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
                                                     BinaryData::background_pngSize);
   auto &apvts = processorRef.getAPVTS();
 
-  masterVolume = std::make_unique<gm::Knob>(apvts, "masterVolume", "VOL",
-                                            "Master volume");
-  masterVolume->setStyle(gm::KnobStyle::Knurled);
+  using ComboAtt = juce::AudioProcessorValueTreeState::ComboBoxAttachment;
+  using SliderAtt = juce::AudioProcessorValueTreeState::SliderAttachment;
+
+  auto makeCombo = [&](std::unique_ptr<juce::ComboBox> &slot,
+                       const juce::String &id, const juce::StringArray &items) {
+    slot = std::make_unique<juce::ComboBox>();
+    slot->addItemList(items, 1);
+    slot->setLookAndFeel(&lnf);
+    addAndMakeVisible(*slot);
+    comboAtts.push_back(std::make_unique<ComboAtt>(apvts, id, *slot));
+  };
+  auto makeSlider = [&](std::unique_ptr<juce::Slider> &slot,
+                        const juce::String &id) {
+    slot = std::make_unique<juce::Slider>(juce::Slider::LinearHorizontal,
+                                          juce::Slider::NoTextBox);
+    slot->setLookAndFeel(&lnf);
+    addAndMakeVisible(*slot);
+    sliderAtts.push_back(std::make_unique<SliderAtt>(apvts, id, *slot));
+  };
+
+  // Volume dial (rotary). Channel ON/OFF, NSE mode and SWEEP enables are
+  // painted toggles (see paint/mouseDown).
+  masterVolume = std::make_unique<juce::Slider>(juce::Slider::RotaryVerticalDrag,
+                                                juce::Slider::NoTextBox);
+  masterVolume->setLookAndFeel(&lnf);
   addAndMakeVisible(*masterVolume);
-
-  auto mkToggle = [&](std::unique_ptr<gm::GmToggleButton> &b,
-                      const juce::String &id, const juce::String &label) {
-    b = std::make_unique<gm::GmToggleButton>();
-    b->setup(apvts, id, label);
-    addAndMakeVisible(*b);
-  };
-  auto mkCombo = [&](std::unique_ptr<gm::ComboSelector> &c,
-                     const juce::String &id, const juce::String &label,
-                     const juce::StringArray &items) {
-    c = std::make_unique<gm::ComboSelector>();
-    c->setup(apvts, id, label, items);
-    addAndMakeVisible(*c);
-  };
-
-  // Channel ON/OFF toggles are painted + hit-tested (see paint/mouseDown).
-  mkToggle(noiseModeToggle, "noiseMode", "SHORT");
+  sliderAtts.push_back(std::make_unique<SliderAtt>(apvts, "masterVolume", *masterVolume));
 
   const juce::StringArray duty4 = {"12.5%", "25%", "50%", "75%"};
   const juce::StringArray duty8 = {"6%",  "12%", "19%", "25%",
                                    "31%", "37%", "44%", "50%"};
-  mkCombo(pulse1Duty, "pulse1Duty", "DUTY", duty4);
-  mkCombo(pulse2Duty, "pulse2Duty", "DUTY", duty4);
-  mkCombo(vrc6Pulse1Duty, "vrc6Pulse1Duty", "DUTY", duty8);
-  mkCombo(vrc6Pulse2Duty, "vrc6Pulse2Duty", "DUTY", duty8);
+  makeCombo(pulse1Duty, "pulse1Duty", duty4);
+  makeCombo(pulse2Duty, "pulse2Duty", duty4);
+  makeCombo(vrc6Pulse1Duty, "vrc6Pulse1Duty", duty8);
+  makeCombo(vrc6Pulse2Duty, "vrc6Pulse2Duty", duty8);
 
   const char *macroIds[7] = {"macroPulse1", "macroPulse2", "macroTri",
                              "macroNoise", "macroVrc6P1", "macroVrc6P2",
@@ -256,38 +262,30 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
                                         "DECAY",   "ARP MAJ", "ARP MIN",
                                         "DUTYSWP", "STAB"};
   for (int i = 0; i < 7; ++i)
-    mkCombo(macroBoxes[i], macroIds[i], "MAC", macroItems);
+    makeCombo(macroBoxes[i], macroIds[i], macroItems);
 
-  // Voice/Arp/Porta/Split are the painted gamepad; granular controls in the rail
-  mkCombo(arpPattern, "arpPattern", "PATTERN", {"Up", "Down", "UpDown", "Rand"});
-  mkCombo(arpOctaves, "arpOctaves", "OCT", {"1", "2", "3", "4"});
-  splitPoint = std::make_unique<gm::HSlider>(apvts, "splitPoint", "SPLIT", "Lo",
-                                             "Hi");
-  addAndMakeVisible(*splitPoint);
-  portamentoSpeed = std::make_unique<gm::HSlider>(apvts, "portamentoSpeed",
-                                                  "GLIDE", "Slow", "Fast");
-  addAndMakeVisible(*portamentoSpeed);
+  makeCombo(arpPattern, "arpPattern", {"Up", "Down", "UpDown", "Rand"});
+  makeCombo(arpOctaves, "arpOctaves", {"1", "2", "3", "4"});
+  makeSlider(splitPoint, "splitPoint");
+  makeSlider(portamentoSpeed, "portamentoSpeed");
 
-  // Hardware sweep woven into P1/P2 strips
-  const char *swEn[2] = {"sweep1Enable", "sweep2Enable"};
-  const char *swDir[2] = {"sweep1Dir", "sweep2Dir"};
-  const char *swRate[2] = {"sweep1Rate", "sweep2Rate"};
-  const char *swShift[2] = {"sweep1Shift", "sweep2Shift"};
+  // Hardware sweep woven into P1/P2 strips (enable is a painted toggle)
+  const char *swDirId[2] = {"sweep1Dir", "sweep2Dir"};
+  const char *swRateId[2] = {"sweep1Rate", "sweep2Rate"};
+  const char *swShiftId[2] = {"sweep1Shift", "sweep2Shift"};
   juce::StringArray rateItems, shiftItems;
   for (int j = 0; j <= 7; ++j) {
     rateItems.add(juce::String(j));
     shiftItems.add(juce::String(j));
   }
   for (int i = 0; i < 2; ++i) {
-    mkToggle(sweepEnables[i], swEn[i], "SWEEP");
-    mkCombo(sweepDirs[i], swDir[i], "DIR", {"Down", "Up"});
-    mkCombo(sweepRates[i], swRate[i], "RATE", rateItems);
-    mkCombo(sweepShifts[i], swShift[i], "SHF", shiftItems);
+    makeCombo(sweepDirs[i], swDirId[i], {"Down", "Up"});
+    makeCombo(sweepRates[i], swRateId[i], rateItems);
+    makeCombo(sweepShifts[i], swShiftId[i], shiftItems);
   }
 
   for (int i = 0; i < kNumStrips; ++i) {
-    scopes[i] = std::make_unique<gm::Oscilloscope>();
-    scopes[i]->setNumGridDivisions(2, 2);
+    scopes[i] = std::make_unique<nessy::NessyScope>();
     addAndMakeVisible(*scopes[i]);
   }
 
@@ -444,29 +442,16 @@ void NessyAudioProcessorEditor::applyThemeToControls() {
   const auto &t = currentTheme;
   const juce::Colour darkInset(0xff201e18);
 
-  auto styleCombo = [&](gm::ComboSelector *c, juce::Colour bg, juce::Colour text,
+  auto styleCombo = [&](juce::ComboBox *c, juce::Colour bg, juce::Colour text,
                         juce::Colour arrow) {
     if (!c) return;
-    c->setColour(gm::ComboSelector::comboBgColourId, bg);
-    c->setColour(gm::ComboSelector::comboOutlineColourId, t.faceBorder);
-    c->setColour(gm::ComboSelector::comboTextColourId, text);
-    c->setColour(gm::ComboSelector::comboArrowColourId, arrow);
-    c->setColour(gm::ComboSelector::labelTextColourId, t.nameText);
-    c->setColour(gm::ComboSelector::focusRingColourId, t.stripe);
-  };
-  auto styleTog = [&](gm::GmToggleButton *b, juce::Colour ledCol) {
-    if (!b) return;
-    b->setColour(gm::GmToggleButton::buttonBgColourId, juce::Colour(0xff34332b));
-    b->setColour(gm::GmToggleButton::buttonBgOnColourId, ledCol.withAlpha(0.55f));
-    b->setColour(gm::GmToggleButton::textOffColourId, juce::Colour(0xff76736b));
-    b->setColour(gm::GmToggleButton::textOnColourId, juce::Colour(0xffe6e2d6));
-    b->setColour(gm::GmToggleButton::ledOnColourId, ledCol);
-    b->setColour(gm::GmToggleButton::ledGlowColourId, ledCol.withAlpha(0.30f));
-    b->setColour(gm::GmToggleButton::labelTextColourId, t.nameText);
-    b->setColour(gm::GmToggleButton::focusRingColourId, ledCol);
+    c->setColour(juce::ComboBox::backgroundColourId, bg);
+    c->setColour(juce::ComboBox::outlineColourId, t.faceBorder);
+    c->setColour(juce::ComboBox::textColourId, text);
+    c->setColour(juce::ComboBox::arrowColourId, arrow);
   };
 
-  // Per-strip duty combos + macro chips + scopes + enable toggles
+  // Per-strip duty combos + macro chips
   styleCombo(pulse1Duty.get(), darkInset, kColor[0].brighter(0.6f), t.stripe);
   styleCombo(pulse2Duty.get(), darkInset, kColor[1].brighter(0.7f), t.stripe);
   styleCombo(vrc6Pulse1Duty.get(), darkInset, kColor[5].brighter(0.7f), t.stripe);
@@ -475,37 +460,28 @@ void NessyAudioProcessorEditor::applyThemeToControls() {
     styleCombo(macroBoxes[i].get(), t.macroBg, juce::Colour(0xff2a2a28),
                t.stripe.darker(0.2f));
 
-  styleTog(noiseModeToggle.get(), kColor[3]); // NSE Long/Short readout
-
   // Global cluster (rail granular controls)
   styleCombo(arpPattern.get(), darkInset, t.hdrDim, t.stripe);
   styleCombo(arpOctaves.get(), darkInset, t.hdrDim, t.stripe);
   for (auto *s : {splitPoint.get(), portamentoSpeed.get()}) {
-    s->setColour(gm::HSlider::labelTextColourId, t.railText);
-    s->setColour(gm::HSlider::endpointTextColourId, t.railText);
+    s->setColour(juce::Slider::backgroundColourId, darkInset);
+    s->setColour(juce::Slider::trackColourId, t.stripe);
+    s->setColour(juce::Slider::thumbColourId, juce::Colour(0xffd2cec3));
   }
 
-  // Sweep
+  // Sweep combos (enable is a painted toggle)
   for (int i = 0; i < 2; ++i) {
-    styleTog(sweepEnables[i].get(), kColor[i]);
     styleCombo(sweepDirs[i].get(), darkInset, t.hdrDim, t.stripe);
     styleCombo(sweepRates[i].get(), darkInset, t.hdrDim, t.stripe);
     styleCombo(sweepShifts[i].get(), darkInset, t.hdrDim, t.stripe);
   }
 
-  // Scopes
-  for (int i = 0; i < kNumStrips; ++i) {
-    scopes[i]->setColour(gm::Oscilloscope::backgroundColourId,
-                         juce::Colour(0xff161614));
-    scopes[i]->setColour(gm::Oscilloscope::waveformColourId, kColor[i]);
-    scopes[i]->setColour(gm::Oscilloscope::gridColourId, juce::Colour(0x335a5a52));
-    scopes[i]->setColour(gm::Oscilloscope::borderColourId,
-                         juce::Colours::transparentBlack);
-  }
+  // Scopes (channel-coloured trace)
+  for (int i = 0; i < kNumStrips; ++i)
+    scopes[i]->setTraceColour(kColor[i]);
 
-  // Knob + keyboard
-  masterVolume->setColour(gm::Knob::labelTextColourId, t.hdrDim);
-  masterVolume->setColour(gm::Knob::valueTextColourId, t.hdrDim);
+  // Volume dial pointer + keyboard
+  masterVolume->setColour(juce::Slider::rotarySliderFillColourId, t.stripe);
   keyboard.setColour(juce::MidiKeyboardComponent::whiteNoteColourId,
                      juce::Colour(0xfff4f1e9));
   keyboard.setColour(juce::MidiKeyboardComponent::blackNoteColourId,
@@ -575,9 +551,22 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
 
   drawGamepad(g);
 
+  // Volume dial label (the dial is a juce rotary slider)
+  g.setColour(t.hdrDim);
+  g.setFont(px(5.0f));
+  g.drawText("VOL", themeSwitchBounds().getX() - 68, 54, 56, 9,
+             juce::Justification::centred);
+
   // ---- Control rail ----
   auto rail = juce::Rectangle<int>(0, 72, kBaseW, 46).reduced(14, 3);
   bevelOut(g, rail.toFloat(), t.railA, t.railB, 6.0f);
+  // labels for the rail's juce controls (PATTERN/OCT combos, SPLIT/GLIDE sliders)
+  g.setColour(t.railText);
+  g.setFont(px(6.0f));
+  g.drawText("PATTERN", 24, 80, 58, 30, juce::Justification::centredLeft);
+  g.drawText("OCT", 190, 80, 30, 30, juce::Justification::centredLeft);
+  g.drawText("SPLIT", 290, 84, 44, 22, juce::Justification::centredLeft);
+  g.drawText("GLIDE", 502, 84, 44, 22, juce::Justification::centredLeft);
 
   // ---- Channel deck ----
   auto deck = deckBounds();
@@ -643,6 +632,17 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
       g.drawText(kStatic[i], r.readout, juce::Justification::centred);
     }
 
+    // NSE readout = painted Long/Short toggle (hit-tested in mouseDown)
+    if (i == 3) {
+      bool shortMode =
+          processorRef.getAPVTS().getRawParameterValue("noiseMode")->load() > 0.5f;
+      bevelIn(g, r.readout.toFloat(), juce::Colour(0xff201e18), 3.0f);
+      g.setColour(kColor[3].brighter(0.6f));
+      g.setFont(px(6.5f));
+      g.drawText(shortMode ? "SHORT" : "LONG", r.readout,
+                 juce::Justification::centred);
+    }
+
     // DMC has no macro chip
     if (i == 4) {
       g.setColour(t.macroBg);
@@ -660,6 +660,28 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
     g.setColour(t.nameText);
     g.setFont(px(5.0f));
     g.drawText(kName[i], r.name, juce::Justification::centred);
+
+    // sweep block (P1/P2): painted enable toggle + DIR/RATE/SHF combo labels
+    if (i < 2) {
+      bool swOn = processorRef.getAPVTS()
+                      .getRawParameterValue(i == 0 ? "sweep1Enable" : "sweep2Enable")
+                      ->load() > 0.5f;
+      bevelIn(g, r.swEnable.toFloat(), juce::Colour(0xff34332b), 3.0f);
+      led(g, {(float)r.swEnable.getX() + 11, (float)r.swEnable.getCentreY()}, 4.5f,
+          kColor[i], swOn);
+      g.setColour(swOn ? juce::Colour(0xffe6e2d6) : juce::Colour(0xff76736b));
+      g.setFont(px(6.0f));
+      g.drawText("SWEEP", r.swEnable.withTrimmedLeft(24),
+                 juce::Justification::centredLeft);
+      g.setColour(t.nameText);
+      g.setFont(px(4.5f));
+      g.drawText("DIR", r.swDir.getX(), r.swDir.getY(), r.swDir.getWidth(), 9,
+                 juce::Justification::centredLeft);
+      g.drawText("RATE", r.swRate.getX(), r.swRate.getY(), r.swRate.getWidth(), 9,
+                 juce::Justification::centredLeft);
+      g.drawText("SHF", r.swShift.getX(), r.swShift.getY(), r.swShift.getWidth(), 9,
+                 juce::Justification::centredLeft);
+    }
   }
 
   // VRC6 divider
@@ -689,32 +711,29 @@ void NessyAudioProcessorEditor::paintOverChildren(juce::Graphics &g) {
 
 // ---- Layout ---------------------------------------------------------------
 void NessyAudioProcessorEditor::resizedContent() {
-  // Header: volume dial (left of theme switch)
+  // Header: volume dial (left of theme switch; VOL label painted under it)
   auto ts = themeSwitchBounds();
-  masterVolume->setBounds(ts.getX() - 70, 8, 60, 60);
+  masterVolume->setBounds(ts.getX() - 68, 4, 56, 50);
 
-  // Control rail: granular arp + split + glide (Voice/Arp/Porta/Split = gamepad)
-  int y = 76, h = 38;
-  arpPattern->setBounds(24, y, 124, h);
-  arpOctaves->setBounds(154, y, 66, h);
-  splitPoint->setBounds(234, y + 6, 168, h - 14);
-  portamentoSpeed->setBounds(410, y + 6, 168, h - 14);
+  // Control rail: granular arp + split + glide (labels painted alongside)
+  arpPattern->setBounds(86, 80, 92, 30);
+  arpOctaves->setBounds(222, 80, 48, 30);
+  splitPoint->setBounds(336, 84, 150, 22);
+  portamentoSpeed->setBounds(548, 84, 150, 22);
 
   // Channel strips
   for (int i = 0; i < kNumStrips; ++i) {
     auto r = rowsFor(stripBounds(i), i < 2);
 
-    // ON/OFF toggle (P1 P2 TRI NSE -> own; VRC6 P1 -> vrc6Enable)
-    // ON/OFF toggle is painted (see paint) + hit-tested (see mouseDown)
+    // ON/OFF, NSE mode and SWEEP enable are painted toggles (see paint/mouseDown).
 
-    // readout-row control
-    gm::ComboSelector *duty = nullptr;
+    // readout-row duty combo
+    juce::ComboBox *duty = nullptr;
     if (i == 0) duty = pulse1Duty.get();
     else if (i == 1) duty = pulse2Duty.get();
     else if (i == 5) duty = vrc6Pulse1Duty.get();
     else if (i == 6) duty = vrc6Pulse2Duty.get();
     if (duty) duty->setBounds(r.readout);
-    if (i == 3) noiseModeToggle->setBounds(r.readout);
 
     // macro chip
     int m = macroIdx(i);
@@ -723,12 +742,11 @@ void NessyAudioProcessorEditor::resizedContent() {
     // scope
     scopes[i]->setBounds(r.scope);
 
-    // sweep (P1/P2)
+    // sweep combos (P1/P2) — top strip reserved for painted DIR/RATE/SHF labels
     if (i < 2) {
-      sweepEnables[i]->setBounds(r.swEnable);
-      sweepDirs[i]->setBounds(r.swDir);
-      sweepRates[i]->setBounds(r.swRate);
-      sweepShifts[i]->setBounds(r.swShift);
+      sweepDirs[i]->setBounds(r.swDir.withTrimmedTop(9));
+      sweepRates[i]->setBounds(r.swRate.withTrimmedTop(9));
+      sweepShifts[i]->setBounds(r.swShift.withTrimmedTop(9));
     }
   }
 
@@ -770,6 +788,18 @@ void NessyAudioProcessorEditor::mouseDown(const juce::MouseEvent &e) {
         return;
       }
   }
+
+  // NSE Long/Short readout (painted)
+  if (rowsFor(stripBounds(3), false).readout.contains(pos)) {
+    toggleBool("noiseMode");
+    return;
+  }
+  // P1/P2 sweep enable (painted)
+  for (int i = 0; i < 2; ++i)
+    if (rowsFor(stripBounds(i), true).swEnable.contains(pos)) {
+      toggleBool(i == 0 ? "sweep1Enable" : "sweep2Enable");
+      return;
+    }
 
   auto segs = themeSegmentRects();
   for (int i = 0; i < 3; ++i)
