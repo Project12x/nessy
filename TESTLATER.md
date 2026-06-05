@@ -1,0 +1,135 @@
+# TESTLATER — Manual Test Backlog
+
+Nessy has **no automated tests**; every behavior is verified by hand. This doc
+is the running list of what a human still needs to check. Tick a box when
+verified; annotate `FAIL —` inline if it breaks.
+
+**Last updated:** 2026-06-05 (after commits `1ad865d` arp/sweep/portamento and
+`51db06a` idempotent-setter fix).
+
+**How to test:** launch the Standalone
+(`build\Nessy_artefacts\Release\Standalone\Nessy.exe`) or load the VST3 in a DAW.
+Play via the on-screen keyboard or external MIDI. For audio items, *listen*; for
+UI items, *interact* (click, right-click, double-click, drag, resize).
+
+**Priority:**
+`P0` recently changed / unverified — check before trusting.
+`P1` core behavior & regression surface.
+`P2` deeper checks, edge cases, known-issue follow-ups.
+
+---
+
+## P0 — Recent changes, unverified
+
+### ⚠️ Known risk found in code review (not yet fixed)
+
+- [ ] **Pulse volume & duty macros are probably still stomped.** `processBlock`
+  calls `setPulseDuty(0/1)` **every block**, which re-writes `$4000`/`$4004`
+  (duty **+ velocity-derived volume**) whenever a pulse note is active. A
+  Vol Decay / Stab / Duty Sweep macro writes the same register at 60 Hz, but
+  `setPulseDuty` runs ~86 Hz and re-asserts full velocity volume at the top of
+  each block, overwriting the macro. The `51db06a` `active`-freeze fix is
+  necessary but **not sufficient** for these. Expected symptom: Pulse 1/2 stays
+  near full volume / fixed duty instead of fading or sweeping.
+  **Likely fix:** make the per-block pulse-duty sync idempotent (only call
+  `setPulseDuty` when the duty param actually changes), mirroring `51db06a`.
+
+### Macro sequencer (per channel)
+- [ ] **Vibrato** (pitch macro) on Pulse 1/2 — held note wobbles continuously
+  (pitch macros write `$4002/3`, nothing stomps them → expected to work now).
+- [ ] **Vol Decay / Stab** on **Noise** — should fade (`$400C` is not stomped). Confirm.
+- [ ] **Vol Decay / Stab / Duty Sweep** on **Pulse 1/2** — see ⚠️ above; expected to fail until the duty-sync is gated.
+- [ ] **Arp Major / Arp Minor** macro on a held note — cycles root / 3rd-or-4th / 5th.
+- [ ] Which macro type affects which channel is correct: volume → Pulse + Noise only; duty → Pulse only; pitch/arpeggio → Pulse + Triangle + VRC6. (Triangle has no volume reg; VRC6 volume/duty macros are intentionally no-ops.)
+- [ ] Macro resets on each note-on and stops on note-off (no release point → instant stop).
+- [ ] Changing a macro preset mid-note behaves sanely (resets that channel's sequence).
+
+### Standalone arpeggiator
+- [ ] Up / Down / UpDown / Random produce the expected note order.
+- [ ] **Random reorders once per cycle, not every frame** (the `51db06a` reshuffle fix).
+- [ ] Octave range 1–4 expands the sequence correctly.
+- [ ] Arp routes through the active voice mode; releasing all keys stops it (`arpNoteOff`).
+- [ ] Arp on → the per-channel **macro** arpeggio is suppressed (no double-arping).
+- [ ] Rapid chord changes don't leave a stuck note.
+
+### Hardware sweep (Pulse 1 & 2)
+- [ ] Enable + direction (Up/Down) + rate + shift → audible pitch glide on a sustained note.
+- [ ] Disable → no sweep; note plays at fixed pitch.
+- [ ] Very fast rate/shift doesn't silence the channel (period underflow mutes real hardware — confirm intended).
+
+### Portamento / glide
+- [ ] ⚠️ **Glide may only work in Unison mode.** `MacroEngine::noteOn` only starts a
+  slide when the channel was already `active` with a valid `lastNote` (legato on
+  the *same* channel). Round-Robin / Pitch-Split spread consecutive notes across
+  *different* channels, so the new channel's `lastNote` is −1 → no glide. Verify
+  in all three voice modes; if glide is wanted in non-unison modes it needs a
+  mono voice path.
+- [ ] Speed slider (1–255) changes glide rate as expected.
+- [ ] First note after silence has no glide (nothing to glide from).
+
+---
+
+## P1 — Core regression surface
+
+> `PluginEditor.cpp` (~412 lines) and `processBlock` were heavily reworked this
+> phase, so re-confirm the basics.
+
+### Channels — each produces correct sound
+- [ ] Pulse 1, Pulse 2 (4 duty cycles, velocity → volume)
+- [ ] Triangle (fixed volume by HW design)
+- [ ] Noise (short/long mode, pitch-mapped period)
+- [ ] DMC drum kit — GM map (36 Kick, 38 Snare, 42 Hi-Hat, toms, etc.); each note triggers the right sample
+- [ ] VRC6 Pulse 1 / Pulse 2 (8 duty levels) and Sawtooth (accumulator-rate volume)
+
+### Voice allocation
+- [ ] Round-Robin cycles channels and steals oldest when full
+- [ ] Pitch-Split routes low→Tri/Saw, high→Pulses at the split point
+- [ ] Unison full-stack plays all *enabled* melodic channels; respects per-channel enable toggles
+- [ ] VRC6 enable extends the voice pool from 3→6 in non-unison modes
+
+### Audio output chain
+- [ ] Master volume is smooth under fast automation (no zipper)
+- [ ] DC blocker removes offset (no thump on note-off)
+- [ ] Safety limiter never lets output NaN/clip harshly
+- [ ] No crackle/dropouts at small buffer sizes / 44.1 & 48 kHz
+
+### Visualizers
+- [ ] All 7 oscilloscopes update and show the right waveform per channel
+- [ ] Scopes stay zero-cross stable (no jitter) and don't lag the audio
+
+### UI interaction (cannot be verified except by hand)
+- [ ] All controls laid out without overlap/clipping at the default window size
+- [ ] Macro selectors (7), sweep controls (Pulse 1 & 2), arp controls, portamento toggle + speed slider all present and bound to the right params
+- [ ] Right-click context menus (Copy/Paste value, Set to Default) work on every control
+- [ ] Double-click text entry on the knob and sliders
+- [ ] Hover/focus visual states render
+- [ ] Background image tiles correctly; scanline/CRT overlay intact
+- [ ] On-screen keyboard plays and lights up held notes
+
+### State & host
+- [ ] Save/load (`getStateInformation`/`setStateInformation`) round-trips **all** params — including macro, sweep, portamento, arp — in a DAW session reload
+- [ ] VST3 loads in a DAW; new params automatable; no thread-safety glitches under automation
+- [ ] Phase 12: validate as VST3 in Pedalboard3 (MIDI note/CC; CPU < 5% target)
+
+---
+
+## P2 — Deeper checks & known issues
+
+- [ ] **Aliasing:** `Blip_Buffer` is configured but **not** used in the output
+  path — `NessyAPU::process()` point-samples each core's `out[]` per host sample.
+  Listen for aliasing on high notes / high duty; decide whether band-limiting is
+  needed (and fix the ARCHITECTURE.md "Blip resamples" claim either way).
+- [ ] **Register contention:** beyond the pulse-duty stomp (P0), audit other
+  per-block syncs that re-write shared registers vs. the macro engine
+  (e.g. `setNoiseMode` → `$400E`, VRC6 note-off writes).
+- [ ] Sweep + pitch macro on the same pulse channel (both move period) — characterize the interaction.
+- [ ] Portamento + pitch macro on the same channel (both add a period offset) — characterize.
+- [ ] CPU usage under full 8-voice unison + macros + arp (target < 5% at 44.1 kHz stereo).
+- [ ] Compiler warnings: C4244 `uint8_t`-from-`int`, and the `juce::ComboBox::label` deprecation seen in the Release build — confirm benign or clean up.
+- [ ] Stress: MIDI all-notes-off / panic clears every channel and the arpeggiator.
+
+---
+
+## Verified (move items here once confirmed, with date + initials)
+
+_(empty)_
