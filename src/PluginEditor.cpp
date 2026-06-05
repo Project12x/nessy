@@ -190,15 +190,15 @@ Rows rowsFor(juce::Rectangle<int> s, bool hasSweep) {
     face.removeFromTop(gap);
     return rr;
   };
-  r.onoff = take(22, 4);
-  r.readout = take(22, 4);
-  r.macro = take(20, 5);
-  r.scope = take(50, 4);
-  r.name = take(13, 4);
+  r.onoff = take(26, 4);
+  r.readout = take(36, 4);
+  r.macro = take(36, 4);
+  r.scope = take(42, 4);
+  r.name = take(11, 4);
   if (hasSweep) {
-    r.swEnable = take(20, 3);
-    r.swDir = take(20, 3);
-    auto rs = take(20, 0);
+    r.swEnable = take(26, 3);
+    r.swDir = take(30, 3);
+    auto rs = take(30, 0);
     r.swRate = rs.removeFromLeft(rs.getWidth() / 2 - 2);
     r.swShift = rs.removeFromRight(rs.getWidth() - 2);
   }
@@ -262,13 +262,9 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
   for (int i = 0; i < 7; ++i)
     mkCombo(macroBoxes[i], macroIds[i], "MAC", macroItems);
 
-  // Global cluster (control rail)
-  mkCombo(voiceMode, "voiceMode", "VOICE",
-          {"Round-Robin", "Pitch-Split", "Unison"});
-  mkToggle(arpToggle, "arpEnable", "ARP");
+  // Voice/Arp/Porta/Split are the painted gamepad; granular controls in the rail
   mkCombo(arpPattern, "arpPattern", "PATTERN", {"Up", "Down", "UpDown", "Rand"});
   mkCombo(arpOctaves, "arpOctaves", "OCT", {"1", "2", "3", "4"});
-  mkToggle(portamentoToggle, "portamentoEnable", "PORTA");
   splitPoint = std::make_unique<gm::HSlider>(apvts, "splitPoint", "SPLIT", "Lo",
                                              "Hi");
   addAndMakeVisible(*splitPoint);
@@ -346,6 +342,99 @@ NessyAudioProcessorEditor::themeSegmentRects() const {
   return {box.removeFromLeft(w), box.removeFromLeft(w), box};
 }
 
+NessyAudioProcessorEditor::GpadRegions
+NessyAudioProcessorEditor::gamepadRegions() const {
+  GpadRegions r;
+  r.cluster = {360, 6, 478, 60};
+  auto inner = r.cluster.reduced(9, 8);
+  r.dpad = inner.removeFromLeft(40).withSizeKeepingCentre(38, 38);
+  inner.removeFromLeft(12);
+  auto pills = inner.removeFromLeft(168);
+  r.voice = pills.removeFromTop(pills.getHeight() / 2 - 2);
+  pills.removeFromTop(4);
+  r.arp = pills;
+  inner.removeFromLeft(12);
+  r.bBtn = inner.removeFromLeft(40).withSizeKeepingCentre(34, 34);
+  inner.removeFromLeft(6);
+  r.aBtn = inner.removeFromLeft(40).withSizeKeepingCentre(34, 34);
+  return r;
+}
+
+void NessyAudioProcessorEditor::drawGamepad(juce::Graphics &g) {
+  const auto &t = currentTheme;
+  auto &apvts = processorRef.getAPVTS();
+  auto R = gamepadRegions();
+
+  int voice = (int)apvts.getRawParameterValue("voiceMode")->load();
+  bool arp = apvts.getRawParameterValue("arpEnable")->load() > 0.5f;
+  bool porta = apvts.getRawParameterValue("portamentoEnable")->load() > 0.5f;
+  bool split = (voice == 1);
+  const char *voiceNm[3] = {"R-ROBIN", "P-SPLIT", "UNISON"};
+
+  bevelOut(g, R.cluster.toFloat(), t.padShellA, t.padShellB, 9.0f);
+  g.setColour(t.padAccent.withAlpha(0.85f));
+  g.fillRoundedRectangle((float)R.cluster.getX() + 9, (float)R.cluster.getY() + 3,
+                         (float)R.cluster.getWidth() - 18, 2.0f, 1.0f);
+
+  // D-pad (decorative brand motif)
+  {
+    auto d = R.dpad;
+    auto arm = [&](juce::Rectangle<int> a) {
+      g.setGradientFill({juce::Colour(0xff46443f), (float)a.getX(), (float)a.getY(),
+                         juce::Colour(0xff2a2a28), (float)a.getX(),
+                         (float)a.getBottom(), false});
+      g.fillRoundedRectangle(a.toFloat(), 2.0f);
+    };
+    arm({d.getCentreX() - 6, d.getY(), 12, d.getHeight()});
+    arm({d.getX(), d.getCentreY() - 6, d.getWidth(), 12});
+    g.setColour(juce::Colour(0xff1b1b19));
+    g.fillEllipse((float)d.getCentreX() - 5, (float)d.getCentreY() - 5, 10, 10);
+  }
+
+  // recessed Select/Start strip
+  bevelIn(g, R.voice.getUnion(R.arp).expanded(5, 4).toFloat(),
+          juce::Colours::black.withAlpha(0.45f), 5.0f);
+  auto pill = [&](juce::Rectangle<int> rr, const char *tag, const char *val,
+                  juce::Colour valCol, bool lit) {
+    vgrad(g, rr.toFloat(), juce::Colour(0xff46443f), juce::Colour(0xff282824), 5.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.12f));
+    g.drawRoundedRectangle(rr.toFloat().reduced(0.5f), 5.0f, 1.0f);
+    auto half = rr.reduced(6, 0);
+    g.setColour(juce::Colour(0xff9a8478));
+    g.setFont(px(4.5f));
+    g.drawText(tag, half.removeFromLeft(34), juce::Justification::centredLeft);
+    g.setColour(lit ? valCol : juce::Colour(0xff6f6a60));
+    g.setFont(px(6.0f));
+    g.drawText(val, half, juce::Justification::centredRight);
+  };
+  pill(R.voice, "VOICE", voiceNm[juce::jlimit(0, 2, voice)], t.subtitleCol, true);
+  pill(R.arp, "ARP", arp ? "ON" : "OFF", t.stripe.brighter(0.2f), arp);
+
+  // A / B face buttons
+  auto abBtn = [&](juce::Rectangle<int> rr, const char *letter, const char *fn,
+                   bool on) {
+    auto c = rr.toFloat();
+    if (on) { g.setColour(t.padAb.withAlpha(0.35f)); g.fillEllipse(c.expanded(3)); }
+    g.setGradientFill({on ? t.padAbHi : t.padAbLo, c.getX() + c.getWidth() * 0.35f,
+                       c.getY() + c.getHeight() * 0.3f,
+                       on ? t.padAbLo : juce::Colour(0xff240a08), c.getRight(),
+                       c.getBottom(), true});
+    g.fillEllipse(c);
+    g.setColour(juce::Colours::white.withAlpha(on ? 0.35f : 0.12f));
+    g.drawEllipse(c.reduced(0.5f), 1.0f);
+    g.setColour(on ? juce::Colours::white : juce::Colour(0xffa06a66));
+    g.setFont(px(7.0f));
+    g.drawText(letter, rr, juce::Justification::centred);
+    g.setColour(on ? juce::Colour(0xffd9a39c) : juce::Colour(0xff7c5a57));
+    g.setFont(px(4.5f));
+    g.drawText(fn, juce::Rectangle<int>(rr.getX() - 6, rr.getBottom(),
+                                        rr.getWidth() + 12, 8),
+               juce::Justification::centred);
+  };
+  abBtn(R.bBtn, "B", "SPLIT", split);
+  abBtn(R.aBtn, "A", "PORTA", porta);
+}
+
 // ---- Theme ----------------------------------------------------------------
 void NessyAudioProcessorEditor::setTheme(int index) {
   themeIndex = juce::jlimit(0, 2, index);
@@ -372,7 +461,7 @@ void NessyAudioProcessorEditor::applyThemeToControls() {
   auto styleTog = [&](gm::GmToggleButton *b, juce::Colour ledCol) {
     if (!b) return;
     b->setColour(gm::GmToggleButton::buttonBgColourId, juce::Colour(0xff34332b));
-    b->setColour(gm::GmToggleButton::buttonBgOnColourId, ledCol.withAlpha(0.22f));
+    b->setColour(gm::GmToggleButton::buttonBgOnColourId, ledCol.withAlpha(0.55f));
     b->setColour(gm::GmToggleButton::textOffColourId, juce::Colour(0xff76736b));
     b->setColour(gm::GmToggleButton::textOnColourId, juce::Colour(0xffe6e2d6));
     b->setColour(gm::GmToggleButton::ledOnColourId, ledCol);
@@ -397,12 +486,9 @@ void NessyAudioProcessorEditor::applyThemeToControls() {
   styleTog(noiseModeToggle.get(), kColor[3]);
   styleTog(vrc6EnableToggle.get(), kColor[5]);
 
-  // Global cluster
-  styleCombo(voiceMode.get(), darkInset, t.hdrDim, t.stripe);
+  // Global cluster (rail granular controls)
   styleCombo(arpPattern.get(), darkInset, t.hdrDim, t.stripe);
   styleCombo(arpOctaves.get(), darkInset, t.hdrDim, t.stripe);
-  styleTog(arpToggle.get(), t.stripe);
-  styleTog(portamentoToggle.get(), kColor[3]);
   for (auto *s : {splitPoint.get(), portamentoSpeed.get()}) {
     s->setColour(gm::HSlider::labelTextColourId, t.railText);
     s->setColour(gm::HSlider::endpointTextColourId, t.railText);
@@ -496,8 +582,10 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
                juce::Justification::centred);
   }
 
+  drawGamepad(g);
+
   // ---- Control rail ----
-  auto rail = juce::Rectangle<int>(0, 72, kBaseW, 46).reduced(14, 6);
+  auto rail = juce::Rectangle<int>(0, 72, kBaseW, 46).reduced(14, 3);
   bevelOut(g, rail.toFloat(), t.railA, t.railB, 6.0f);
 
   // ---- Channel deck ----
@@ -613,15 +701,12 @@ void NessyAudioProcessorEditor::resizedContent() {
   auto ts = themeSwitchBounds();
   masterVolume->setBounds(ts.getX() - 70, 8, 60, 60);
 
-  // Control rail cluster
-  int y = 80, h = 30;
-  voiceMode->setBounds(24, y, 132, h);
-  arpToggle->setBounds(168, y, 52, h);
-  arpPattern->setBounds(226, y, 92, h);
-  arpOctaves->setBounds(324, y, 50, h);
-  portamentoToggle->setBounds(386, y, 64, h);
-  splitPoint->setBounds(462, y + 2, 130, h - 4);
-  portamentoSpeed->setBounds(602, y + 2, 130, h - 4);
+  // Control rail: granular arp + split + glide (Voice/Arp/Porta/Split = gamepad)
+  int y = 76, h = 38;
+  arpPattern->setBounds(24, y, 124, h);
+  arpOctaves->setBounds(154, y, 66, h);
+  splitPoint->setBounds(234, y + 6, 168, h - 14);
+  portamentoSpeed->setBounds(410, y + 6, 168, h - 14);
 
   // Channel strips
   for (int i = 0; i < kNumStrips; ++i) {
@@ -665,10 +750,30 @@ void NessyAudioProcessorEditor::resizedContent() {
 }
 
 void NessyAudioProcessorEditor::mouseDown(const juce::MouseEvent &e) {
+  auto &apvts = processorRef.getAPVTS();
+  auto pos = e.getPosition();
+
+  auto cycleChoice = [&](const char *id) {
+    if (auto *c = dynamic_cast<juce::AudioParameterChoice *>(apvts.getParameter(id)))
+      c->setValueNotifyingHost(
+          c->convertTo0to1((float)((c->getIndex() + 1) % c->choices.size())));
+  };
+  auto toggleBool = [&](const char *id) {
+    if (auto *b = dynamic_cast<juce::AudioParameterBool *>(apvts.getParameter(id)))
+      b->setValueNotifyingHost(b->get() ? 0.0f : 1.0f);
+  };
+  auto setChoice = [&](const char *id, int idx) {
+    if (auto *c = dynamic_cast<juce::AudioParameterChoice *>(apvts.getParameter(id)))
+      c->setValueNotifyingHost(c->convertTo0to1((float)idx));
+  };
+
+  auto gp = gamepadRegions();
+  if (gp.voice.contains(pos)) { cycleChoice("voiceMode"); return; }
+  if (gp.arp.contains(pos)) { toggleBool("arpEnable"); return; }
+  if (gp.aBtn.contains(pos)) { toggleBool("portamentoEnable"); return; }
+  if (gp.bBtn.contains(pos)) { setChoice("voiceMode", 1); return; } // Pitch-Split
+
   auto segs = themeSegmentRects();
   for (int i = 0; i < 3; ++i)
-    if (segs[i].contains(e.getPosition())) {
-      setTheme(i);
-      return;
-    }
+    if (segs[i].contains(pos)) { setTheme(i); return; }
 }

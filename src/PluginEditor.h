@@ -68,6 +68,13 @@ private:
   juce::Rectangle<int> themeSwitchBounds() const;
   std::array<juce::Rectangle<int>, 3> themeSegmentRects() const;
 
+  // Gamepad cluster (header) — painted + hit-tested, drives Voice/Arp/Porta/Split
+  struct GpadRegions {
+    juce::Rectangle<int> cluster, dpad, voice, arp, aBtn, bBtn;
+  };
+  GpadRegions gamepadRegions() const;
+  void drawGamepad(juce::Graphics &g);
+
   NessyAudioProcessor &processorRef;
 
   NessyTheme currentTheme;
@@ -89,11 +96,9 @@ private:
   // Macro chips — index order P1 P2 TRI NSE VRC6P1 VRC6P2 SAW (DMC has none)
   std::array<std::unique_ptr<gm::ComboSelector>, 7> macroBoxes;
 
-  // Global control cluster (header)
-  std::unique_ptr<gm::ComboSelector> voiceMode;
-  std::unique_ptr<gm::GmToggleButton> arpToggle;
+  // Global cluster: Voice/Arp/Porta/Split are the painted gamepad (header);
+  // the granular controls live in the rail.
   std::unique_ptr<gm::ComboSelector> arpPattern, arpOctaves;
-  std::unique_ptr<gm::GmToggleButton> portamentoToggle;
   std::unique_ptr<gm::HSlider> splitPoint, portamentoSpeed;
 
   // Hardware sweep, woven into the P1/P2 strips
