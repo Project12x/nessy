@@ -37,10 +37,16 @@ public:
     auto b = getLocalBounds().toFloat();
     g.setColour(juce::Colour(0xff161614));
     g.fillRect(b);
+    // faint center-cross graticule (CRT phosphor grid)
+    g.setColour(juce::Colour(0xff5a5a52).withAlpha(0.16f));
+    g.drawHorizontalLine((int)b.getCentreY(), b.getX(), b.getRight());
+    g.drawVerticalLine((int)b.getCentreX(), b.getY(), b.getBottom());
     auto path = osc_.makePath(b.reduced(2.0f), 0.42f);
-    g.setColour(trace_.withAlpha(0.22f));
-    g.strokePath(path, juce::PathStrokeType(3.5f));
-    g.setColour(trace_);
+    g.setColour(trace_.withAlpha(0.12f)); // wide phosphor bloom
+    g.strokePath(path, juce::PathStrokeType(5.5f));
+    g.setColour(trace_.withAlpha(0.30f)); // inner glow
+    g.strokePath(path, juce::PathStrokeType(3.0f));
+    g.setColour(trace_); // sharp trace
     g.strokePath(path, juce::PathStrokeType(1.4f, juce::PathStrokeType::curved,
                                             juce::PathStrokeType::rounded));
   }
@@ -75,14 +81,15 @@ public:
     float angle = startAngle + pos * (endAngle - startAngle);
     auto accent = s.findColour(juce::Slider::rotarySliderFillColourId);
 
-    // knurled outer ring
+    // knurled outer ring + 11 radiating tick lines (mockup FL_Dial)
     g.setColour(juce::Colour(0xff2a2a28));
     g.fillEllipse(cx - radius, cy - radius, radius * 2, radius * 2);
-    g.setColour(juce::Colour(0xff4a4a44));
-    for (int i = 0; i < 24; ++i) {
-      float a = juce::MathConstants<float>::twoPi * i / 24.0f;
-      g.fillEllipse(cx + std::cos(a) * (radius - 1.5f) - 0.7f,
-                    cy + std::sin(a) * (radius - 1.5f) - 0.7f, 1.4f, 1.4f);
+    g.setColour(juce::Colour(0xffcfcabd).withAlpha(0.55f));
+    for (int i = 0; i < 11; ++i) {
+      float a = (-135.0f + i * 27.0f) * juce::MathConstants<float>::pi / 180.0f;
+      g.drawLine(cx + std::cos(a) * radius, cy + std::sin(a) * radius,
+                 cx + std::cos(a) * (radius - 3.0f), cy + std::sin(a) * (radius - 3.0f),
+                 1.1f);
     }
     // cap
     float capR = radius * 0.72f;

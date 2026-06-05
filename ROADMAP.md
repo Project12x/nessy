@@ -46,8 +46,11 @@ The 2A03 has a built-in hardware pitch sweep on Pulse 1 and Pulse 2. This create
 
 ## Phase 11: Presets & Polish
 
+The Front-Loader **cartridge loader UI shell is in place** (decorative: seated "MEGA LEAD" cart, prev/next arrows, EJECT/SAVE, PATCH n/06) — it needs wiring to a real preset backend.
+
 - [ ] Factory presets: Mega Man lead, Contra bass, Castlevania arp, Duck Tales melody
-- [ ] User preset save/load via `gm::PresetManager` (JSON, A/B comparison, dirty detection)
+- [ ] User preset save/load (JSON, A/B comparison, dirty detection) — needs a **GPL-clean** preset manager (first-party or ghostmoon-oss; the proprietary `gm::PresetManager` is no longer linked)
+- [ ] Wire the cartridge UI (prev/next · EJECT · SAVE · PATCH n/06) to the preset backend
 - [ ] DAW automation safety audit (parameter ranges, thread safety)
 - [ ] Accurate non-linear TND mixing table
 

@@ -190,15 +190,15 @@ Rows rowsFor(juce::Rectangle<int> s, bool hasSweep) {
     face.removeFromTop(gap);
     return rr;
   };
-  r.onoff = take(26, 4);
-  r.readout = take(36, 4);
-  r.macro = take(36, 4);
-  r.scope = take(42, 4);
-  r.name = take(11, 4);
+  r.onoff = take(24, 4);
+  r.readout = take(34, 4);
+  r.macro = take(34, 4);
+  r.scope = take(36, 4);
+  r.name = take(10, 4);
   if (hasSweep) {
-    r.swEnable = take(26, 3);
-    r.swDir = take(30, 3);
-    auto rs = take(30, 0);
+    r.swEnable = take(24, 3);
+    r.swDir = take(28, 3);
+    auto rs = take(28, 0);
     r.swRate = rs.removeFromLeft(rs.getWidth() / 2 - 2);
     r.swShift = rs.removeFromRight(rs.getWidth() - 2);
   }
@@ -310,10 +310,14 @@ void NessyAudioProcessorEditor::timerCallback() {
 
 // ---- Geometry -------------------------------------------------------------
 juce::Rectangle<int> NessyAudioProcessorEditor::headerBounds() const {
-  return {0, 0, kBaseW, 72};
+  return {0, 0, kBaseW, 66};
+}
+juce::Rectangle<int> NessyAudioProcessorEditor::cartridgeBounds() const {
+  return {0, 66, kBaseW, 42};
 }
 juce::Rectangle<int> NessyAudioProcessorEditor::deckBounds() const {
-  return {0, 118, kBaseW, kBaseH - 18 - 62 - 118};
+  // header 66 + cartridge 42 + rail 38 = 146; keyboard 54 + footer 16 below
+  return {0, 146, kBaseW, 292};
 }
 juce::Rectangle<int> NessyAudioProcessorEditor::stripBounds(int s) const {
   auto deck = deckBounds().reduced(18, 8);
@@ -327,7 +331,7 @@ juce::Rectangle<int> NessyAudioProcessorEditor::stripBounds(int s) const {
   return {x, deck.getY(), sw, deck.getHeight()};
 }
 juce::Rectangle<int> NessyAudioProcessorEditor::themeSwitchBounds() const {
-  return {kBaseW - 16 - 104, 14, 104, 44};
+  return {kBaseW - 16 - 104, 10, 104, 44};
 }
 std::array<juce::Rectangle<int>, 3>
 NessyAudioProcessorEditor::themeSegmentRects() const {
@@ -339,7 +343,7 @@ NessyAudioProcessorEditor::themeSegmentRects() const {
 NessyAudioProcessorEditor::GpadRegions
 NessyAudioProcessorEditor::gamepadRegions() const {
   GpadRegions r;
-  r.cluster = {360, 6, 478, 60};
+  r.cluster = {360, 4, 478, 56};
   auto inner = r.cluster.reduced(9, 8);
   r.dpad = inner.removeFromLeft(40).withSizeKeepingCentre(38, 38);
   inner.removeFromLeft(12);
@@ -388,21 +392,29 @@ void NessyAudioProcessorEditor::drawGamepad(juce::Graphics &g) {
   // recessed Select/Start strip
   bevelIn(g, R.voice.getUnion(R.arp).expanded(5, 4).toFloat(),
           juce::Colours::black.withAlpha(0.45f), 5.0f);
-  auto pill = [&](juce::Rectangle<int> rr, const char *tag, const char *val,
-                  juce::Colour valCol, bool lit) {
+  auto pill = [&](juce::Rectangle<int> rr, const char *sel, const char *label,
+                  const juce::String &val, juce::Colour valCol, bool lit) {
     vgrad(g, rr.toFloat(), juce::Colour(0xff46443f), juce::Colour(0xff282824), 5.0f);
     g.setColour(juce::Colours::white.withAlpha(0.12f));
     g.drawRoundedRectangle(rr.toFloat().reduced(0.5f), 5.0f, 1.0f);
-    auto half = rr.reduced(6, 0);
-    g.setColour(juce::Colour(0xff9a8478));
-    g.setFont(px(4.5f));
-    g.drawText(tag, half.removeFromLeft(34), juce::Justification::centredLeft);
+    auto inner = rr.reduced(7, 2);
+    g.setColour(juce::Colour(0xff8a7d70));
+    g.setFont(px(4.0f));
+    g.drawText(juce::String(sel) + "  " + label,
+               inner.removeFromTop(inner.getHeight() / 2),
+               juce::Justification::centredLeft);
     g.setColour(lit ? valCol : juce::Colour(0xff6f6a60));
-    g.setFont(px(6.0f));
-    g.drawText(val, half, juce::Justification::centredRight);
+    g.setFont(px(6.5f));
+    g.drawText(val, inner, juce::Justification::centredLeft);
   };
-  pill(R.voice, "VOICE", voiceNm[juce::jlimit(0, 2, voice)], t.subtitleCol, true);
-  pill(R.arp, "ARP", arp ? "ON" : "OFF", t.stripe.brighter(0.2f), arp);
+  const char *patShort[4] = {"UP", "DN", "UD", "RND"};
+  int arpPat = juce::jlimit(0, 3, (int)apvts.getRawParameterValue("arpPattern")->load());
+  int arpOct = (int)apvts.getRawParameterValue("arpOctaves")->load();
+  juce::String arpVal =
+      arp ? juce::String(patShort[arpPat]) + "-" + juce::String(arpOct)
+          : juce::String("OFF");
+  pill(R.voice, "SELECT", "VOICE", voiceNm[juce::jlimit(0, 2, voice)], t.subtitleCol, true);
+  pill(R.arp, "START", "ARP", arpVal, t.stripe.brighter(0.2f), arp);
 
   // A / B face buttons
   auto abBtn = [&](juce::Rectangle<int> rr, const char *letter, const char *fn,
@@ -427,6 +439,66 @@ void NessyAudioProcessorEditor::drawGamepad(juce::Graphics &g) {
   };
   abBtn(R.bBtn, "B", "SPLIT", split);
   abBtn(R.aBtn, "A", "PORTA", porta);
+}
+
+// ---- Cartridge preset loader (decorative; wired when Phase 11 lands) ----
+void NessyAudioProcessorEditor::drawCartridge(juce::Graphics &g) {
+  const auto &t = currentTheme;
+  auto bar = cartridgeBounds().reduced(22, 3);
+  bevelOut(g, bar.toFloat(), t.railA, t.railB, 6.0f);
+  auto inner = bar.reduced(9, 4);
+
+  // left label
+  {
+    auto col = inner.removeFromLeft(74);
+    auto top = col.removeFromTop(col.getHeight() / 2);
+    g.setColour(t.railText); g.setFont(px(6.0f));
+    g.drawText("CARTRIDGE", top, juce::Justification::centredLeft);
+    g.setColour(t.nameText); g.setFont(px(5.0f));
+    g.drawText("PATCH 02/06", col, juce::Justification::centredLeft);
+  }
+
+  auto chip = [&](juce::Rectangle<int> r, const juce::String &txt) {
+    bevelOut(g, r.toFloat(), t.chipA, t.chipB, 3.0f);
+    g.setColour(juce::Colour(0xff3a382f)); g.setFont(px(6.0f));
+    g.drawText(txt, r, juce::Justification::centred);
+  };
+  auto arrow = [&](juce::Rectangle<int> r, bool left) {
+    bevelOut(g, r.toFloat(), t.chipA, t.chipB, 3.0f);
+    auto c = r.toFloat().getCentre(); juce::Path p;
+    if (left) p.addTriangle(c.x + 3, c.y - 4, c.x + 3, c.y + 4, c.x - 3, c.y);
+    else      p.addTriangle(c.x - 3, c.y - 4, c.x - 3, c.y + 4, c.x + 3, c.y);
+    g.setColour(juce::Colour(0xff3a382f)); g.fillPath(p);
+  };
+
+  inner.removeFromLeft(6);
+  arrow(inner.removeFromLeft(20).withSizeKeepingCentre(18, 18), true);
+  inner.removeFromLeft(6);
+  chip(inner.removeFromRight(42), "SAVE");
+  inner.removeFromRight(6);
+  chip(inner.removeFromRight(46), "EJECT");
+  inner.removeFromRight(6);
+  arrow(inner.removeFromRight(20).withSizeKeepingCentre(18, 18), false);
+  inner.removeFromRight(8);
+
+  // slot mouth + seated cartridge ("MEGA LEAD" — pulse-1 red label)
+  bevelIn(g, inner.removeFromLeft(9).toFloat(), juce::Colour(0xff0b0b0b), 3.0f);
+  vgrad(g, inner.toFloat(), juce::Colour(0xff46463f), juce::Colour(0xff2e2e29), 4.0f);
+  auto cart = inner.reduced(5, 3);
+  auto ridge = cart.removeFromRight(13);
+  g.setColour(kColor[0]);
+  g.fillRoundedRectangle(cart.toFloat(), 3.0f);
+  g.setColour(juce::Colours::white.withAlpha(0.30f));
+  g.drawRoundedRectangle(cart.toFloat().reduced(0.5f), 3.0f, 1.0f);
+  auto faceTop = cart.removeFromTop(cart.getHeight() / 2);
+  g.setColour(juce::Colours::white.withAlpha(0.8f)); g.setFont(px(4.5f));
+  g.drawText("NESSY - PATCH", faceTop.reduced(6, 0), juce::Justification::centredLeft);
+  g.setColour(juce::Colours::white); g.setFont(px(7.5f));
+  g.drawText("MEGA LEAD", cart.reduced(6, 0), juce::Justification::centredLeft);
+  for (int x = ridge.getX() + 1; x < ridge.getRight(); x += 4) {
+    g.setColour(juce::Colour(0xff54524a));
+    g.fillRect(x, ridge.getY(), 2, ridge.getHeight());
+  }
 }
 
 // ---- Theme ----------------------------------------------------------------
@@ -554,19 +626,22 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
   // Volume dial label (the dial is a juce rotary slider)
   g.setColour(t.hdrDim);
   g.setFont(px(5.0f));
-  g.drawText("VOL", themeSwitchBounds().getX() - 68, 54, 56, 9,
+  g.drawText("VOLUME", themeSwitchBounds().getX() - 72, 49, 64, 9,
              juce::Justification::centred);
 
+  // ---- Cartridge preset loader (decorative) ----
+  drawCartridge(g);
+
   // ---- Control rail ----
-  auto rail = juce::Rectangle<int>(0, 72, kBaseW, 46).reduced(14, 3);
+  auto rail = juce::Rectangle<int>(0, 108, kBaseW, 38).reduced(14, 3);
   bevelOut(g, rail.toFloat(), t.railA, t.railB, 6.0f);
   // labels for the rail's juce controls (PATTERN/OCT combos, SPLIT/GLIDE sliders)
   g.setColour(t.railText);
   g.setFont(px(6.0f));
-  g.drawText("PATTERN", 24, 80, 58, 30, juce::Justification::centredLeft);
-  g.drawText("OCT", 190, 80, 30, 30, juce::Justification::centredLeft);
-  g.drawText("SPLIT", 290, 84, 44, 22, juce::Justification::centredLeft);
-  g.drawText("GLIDE", 502, 84, 44, 22, juce::Justification::centredLeft);
+  g.drawText("PATTERN", 24, 112, 58, 28, juce::Justification::centredLeft);
+  g.drawText("OCT", 190, 112, 30, 28, juce::Justification::centredLeft);
+  g.drawText("SPLIT", 290, 116, 44, 20, juce::Justification::centredLeft);
+  g.drawText("GLIDE", 502, 116, 44, 20, juce::Justification::centredLeft);
 
   // ---- Channel deck ----
   auto deck = deckBounds();
@@ -643,7 +718,7 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
                  juce::Justification::centred);
     }
 
-    // DMC has no macro chip
+    // macro row: "MAC" label (left) + the combo (DMC: static dash, no combo)
     if (i == 4) {
       g.setColour(t.macroBg);
       g.fillRoundedRectangle(r.macro.toFloat(), 3.0f);
@@ -651,6 +726,11 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
       g.setFont(px(6.0f));
       g.drawText("MAC  -", r.macro.reduced(5, 0),
                  juce::Justification::centredLeft);
+    } else if (macroIdx(i) >= 0) {
+      g.setColour(juce::Colour(0xff86827a));
+      g.setFont(px(5.0f));
+      g.drawText("MAC", r.macro.getX() + 3, r.macro.getY(), 22,
+                 r.macro.getHeight(), juce::Justification::centredLeft);
     }
 
     // scope recessed well + frame (CRT glass drawn in paintOverChildren)
@@ -692,10 +772,14 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
                      (float)deckIn.getCentreY(), false});
   g.fillRect(dl, deckIn.getY(), 2, deckIn.getHeight());
 
+  // ---- Keyboard tray (keys sit on a molded-plastic tray) ----
+  bevelOut(g, juce::Rectangle<int>(22, 438, kBaseW - 44, 54).toFloat(),
+           t.trayA, t.trayB, 6.0f);
+
   // ---- Footer ----
   g.setColour(juce::Colour(0xff6f7484));
   g.setFont(px(5.5f));
-  g.drawText("v0.2.0  -  GPL-3.0  -  NTSC 1.789773 MHz", 0, kBaseH - 16, kBaseW,
+  g.drawText("v0.2.0  -  GPL-3.0  -  NTSC 1.789773 MHz", 0, kBaseH - 14, kBaseW,
              12, juce::Justification::centred);
 }
 
@@ -711,15 +795,15 @@ void NessyAudioProcessorEditor::paintOverChildren(juce::Graphics &g) {
 
 // ---- Layout ---------------------------------------------------------------
 void NessyAudioProcessorEditor::resizedContent() {
-  // Header: volume dial (left of theme switch; VOL label painted under it)
+  // Header: volume dial (left of theme switch; VOLUME label painted under it)
   auto ts = themeSwitchBounds();
-  masterVolume->setBounds(ts.getX() - 68, 4, 56, 50);
+  masterVolume->setBounds(ts.getX() - 68, 2, 56, 44);
 
-  // Control rail: granular arp + split + glide (labels painted alongside)
-  arpPattern->setBounds(86, 80, 92, 30);
-  arpOctaves->setBounds(222, 80, 48, 30);
-  splitPoint->setBounds(336, 84, 150, 22);
-  portamentoSpeed->setBounds(548, 84, 150, 22);
+  // Control rail (y 108..146): granular arp + split + glide (labels painted)
+  arpPattern->setBounds(86, 112, 92, 28);
+  arpOctaves->setBounds(222, 112, 48, 28);
+  splitPoint->setBounds(336, 116, 150, 20);
+  portamentoSpeed->setBounds(548, 116, 150, 20);
 
   // Channel strips
   for (int i = 0; i < kNumStrips; ++i) {
@@ -735,9 +819,9 @@ void NessyAudioProcessorEditor::resizedContent() {
     else if (i == 6) duty = vrc6Pulse2Duty.get();
     if (duty) duty->setBounds(r.readout);
 
-    // macro chip
+    // macro chip (combo right of the painted "MAC" label)
     int m = macroIdx(i);
-    if (m >= 0) macroBoxes[m]->setBounds(r.macro);
+    if (m >= 0) macroBoxes[m]->setBounds(r.macro.withTrimmedLeft(26));
 
     // scope
     scopes[i]->setBounds(r.scope);
@@ -750,7 +834,7 @@ void NessyAudioProcessorEditor::resizedContent() {
     }
   }
 
-  keyboard.setBounds(22, kBaseH - 18 - 60, kBaseW - 44, 58);
+  keyboard.setBounds(30, 442, kBaseW - 60, 46);
 }
 
 void NessyAudioProcessorEditor::mouseDown(const juce::MouseEvent &e) {

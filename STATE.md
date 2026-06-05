@@ -42,15 +42,19 @@ cmake --build build --config Release --target Nessy_Standalone
 
 ## UI Framework
 
-**ghostmoon v0.6.0+** — Nessy uses the ghostmoon UI catalog for all controls:
+**Nessy "Front-Loader" NES skin (GPL-clean).** Controls are stock `juce::` widgets styled by Nessy's own `nessy::NessyLookAndFeel` (`src/NessyUI.h`); skin-neutral scaffolding comes from the MIT **ghostmoon-oss** sibling repo. The proprietary `ghostmoon` is **not** linked (Nessy is GPL-3.0). See `THIRD_PARTY_LICENSES.md`.
 
-| Component | ghostmoon Type | Usage |
+| Element | Implementation | Usage |
 |---|---|---|
-| Master volume | `gm::Knob` | Rotary knob with value readout |
-| Channel enables (9) | `gm::GmToggleButton` | LED-style toggles |
-| Selectors (17) | `gm::ComboSelector` | Duty, voice mode, macros, sweep |
-| Sliders (2) | `gm::HSlider` | Split point, portamento speed |
-| Oscilloscopes (7) | `gm::Oscilloscope` | Zero-crossing triggered, double-buffered |
+| Master volume | `juce::Slider` (rotary) + `NessyLookAndFeel` | tactile dial, 11-tick ring + pointer |
+| Channel ON/OFF · NSE mode · P1/P2 sweep enables | painted hit-tested toggles | LED + label, drawn in `paint()` |
+| Duty / macro / arp / sweep selectors | `juce::ComboBox` + `NessyLookAndFeel` | NES-inset combos |
+| Split / Glide | `juce::Slider` (linear) + `NessyLookAndFeel` | control rail |
+| Voice / Arp / Porta / Split | painted gamepad cluster (hit-tested) | header |
+| Cartridge preset loader | painted shell (`drawCartridge`) | decorative; wires up Phase 11 |
+| Oscilloscopes (8) | `nessy::NessyScope` wrapping `gm::ui::Oscilloscope` | zero-cross triggered, 512-sample, double-buffered |
+| Layout / scaling | `gm::ui::ScaledEditor` (ghostmoon-oss, MIT) | fixed 1040×508 artboard, aspect-locked resize |
+| Themes | `NessyTheme` (NES / Famicom / FDS) | persisted to APVTS `uiTheme` |
 
 ## Key Classes
 
@@ -61,7 +65,8 @@ cmake --build build --config Release --target Nessy_Standalone
 | `VoiceAllocator` | `src/apu/VoiceAllocator.cpp` | MIDI → APU channel routing |
 | `MacroEngine` | `src/apu/MacroEngine.cpp` | 60Hz frame-rate macro sequencer |
 | `NessyAudioProcessor` | `src/PluginProcessor.cpp` | JUCE plugin processor, APVTS |
-| `NessyAudioProcessorEditor` | `src/PluginEditor.cpp` | NES-themed UI using ghostmoon catalog |
+| `NessyAudioProcessorEditor` | `src/PluginEditor.cpp` | NES Front-Loader UI (juce:: controls + `NessyLookAndFeel`) |
+| `NessyLookAndFeel` / `NessyScope` | `src/NessyUI.h` | NES control skin + CRT-glass oscilloscope wrapper |
 | `VRC6Exposed` | `src/apu/NessyAPU.cpp` (local) | Subclass of NES_VRC6 exposing protected `out[]` |
 
 ## Known Issues / Tech Debt

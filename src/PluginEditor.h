@@ -58,6 +58,7 @@ private:
 
   // Geometry shared by paint() + resizedContent()
   juce::Rectangle<int> headerBounds() const;
+  juce::Rectangle<int> cartridgeBounds() const; // decorative preset loader row
   juce::Rectangle<int> deckBounds() const;
   juce::Rectangle<int> stripBounds(int strip) const;   // outer faceplate
   juce::Rectangle<int> themeSwitchBounds() const;
@@ -69,6 +70,7 @@ private:
   };
   GpadRegions gamepadRegions() const;
   void drawGamepad(juce::Graphics &g);
+  void drawCartridge(juce::Graphics &g); // decorative preset loader (Phase 11 wires it)
 
   NessyAudioProcessor &processorRef;
   nessy::NessyLookAndFeel lnf; // declared first → destroyed after the controls
