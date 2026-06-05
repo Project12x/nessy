@@ -22,6 +22,8 @@ createParameterLayout() {
       juce::ParameterID("triangleEnable", 1), "Triangle Enable", true));
   layout.add(std::make_unique<juce::AudioParameterBool>(
       juce::ParameterID("noiseEnable", 1), "Noise Enable", true));
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID("dmcEnable", 1), "DMC Enable", true));
 
   // Pulse 1 duty cycle (0-3: 12.5%, 25%, 50%, 75%)
   layout.add(std::make_unique<juce::AudioParameterChoice>(
@@ -176,6 +178,9 @@ void NessyAudioProcessor::prepareToPlay(double sampleRate,
   apu->setChannelEnabled(
       NessyAPU::NOISE,
       parameters.getRawParameterValue("noiseEnable")->load() > 0.5f);
+  apu->setChannelEnabled(
+      NessyAPU::DMC,
+      parameters.getRawParameterValue("dmcEnable")->load() > 0.5f);
 
   // VRC6 expansion
   apu->setVRC6Enabled(parameters.getRawParameterValue("vrc6Enable")->load() >
@@ -223,6 +228,22 @@ void NessyAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   // Update noise mode
   bool noiseMode = parameters.getRawParameterValue("noiseMode")->load() > 0.5f;
   apu->setNoiseMode(noiseMode);
+
+  // Sync base-channel enables live (change-detected — toggling must reach the
+  // APU at runtime, not only in prepareToPlay; VRC6 is synced separately below)
+  {
+    const char *enIds[5] = {"pulse1Enable", "pulse2Enable", "triangleEnable",
+                            "noiseEnable", "dmcEnable"};
+    const int enCh[5] = {NessyAPU::PULSE1, NessyAPU::PULSE2, NessyAPU::TRIANGLE,
+                         NessyAPU::NOISE, NessyAPU::DMC};
+    for (int i = 0; i < 5; ++i) {
+      bool e = parameters.getRawParameterValue(enIds[i])->load() > 0.5f;
+      if (e != m_chEnable[i]) {
+        m_chEnable[i] = e;
+        apu->setChannelEnabled(enCh[i], e);
+      }
+    }
+  }
 
   // Update voice allocation mode
   int voiceMode =

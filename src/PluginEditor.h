@@ -84,9 +84,9 @@ private:
   std::unique_ptr<gm::Knob> masterVolume;
 
   // Per-strip enable toggles (P1 P2 TRI NSE have params; DMC/VRC6 handled below)
-  std::unique_ptr<gm::GmToggleButton> pulse1Toggle, pulse2Toggle,
-      triangleToggle, noiseToggle;
-  std::unique_ptr<gm::GmToggleButton> vrc6EnableToggle; // gates all 3 VRC6 strips
+  // Channel ON/OFF toggles are stylized painted controls (channel-colored LED +
+  // ON/OFF) drawn in paint() and hit-tested in mouseDown — not gm components.
+  // Each strip's enable param: P1/P2/TRI/NSE own; DMC = dmcEnable; VRC6 trio = vrc6Enable.
 
   // Readout-row controls
   std::unique_ptr<gm::ComboSelector> pulse1Duty, pulse2Duty;

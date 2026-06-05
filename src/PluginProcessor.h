@@ -75,6 +75,9 @@ private:
   // Last MIDI velocity for arpeggiator dispatch
   float lastVelocity = 0.8f;
 
+  // Live channel-enable sync (change detection): P1, P2, TRI, NSE, DMC
+  bool m_chEnable[5] = {true, true, true, true, true};
+
   // ghostmoon DSP chain
   gm::SafetyLimiter safetyLimiter;
   gm::DCBlocker dcBlockerL, dcBlockerR;

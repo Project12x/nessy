@@ -238,11 +238,7 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
     addAndMakeVisible(*c);
   };
 
-  mkToggle(pulse1Toggle, "pulse1Enable", "ON");
-  mkToggle(pulse2Toggle, "pulse2Enable", "ON");
-  mkToggle(triangleToggle, "triangleEnable", "ON");
-  mkToggle(noiseToggle, "noiseEnable", "ON");
-  mkToggle(vrc6EnableToggle, "vrc6Enable", "ON");
+  // Channel ON/OFF toggles are painted + hit-tested (see paint/mouseDown).
   mkToggle(noiseModeToggle, "noiseMode", "SHORT");
 
   const juce::StringArray duty4 = {"12.5%", "25%", "50%", "75%"};
@@ -479,12 +475,7 @@ void NessyAudioProcessorEditor::applyThemeToControls() {
     styleCombo(macroBoxes[i].get(), t.macroBg, juce::Colour(0xff2a2a28),
                t.stripe.darker(0.2f));
 
-  styleTog(pulse1Toggle.get(), kColor[0]);
-  styleTog(pulse2Toggle.get(), kColor[1]);
-  styleTog(triangleToggle.get(), kColor[2]);
-  styleTog(noiseToggle.get(), kColor[3]);
-  styleTog(noiseModeToggle.get(), kColor[3]);
-  styleTog(vrc6EnableToggle.get(), kColor[5]);
+  styleTog(noiseModeToggle.get(), kColor[3]); // NSE Long/Short readout
 
   // Global cluster (rail granular controls)
   styleCombo(arpPattern.get(), darkInset, t.hdrDim, t.stripe);
@@ -603,9 +594,6 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
   screw(g, {12.0f, (float)deck.getBottom() - 6});
   screw(g, {(float)kBaseW - 12.0f, (float)deck.getBottom() - 6});
 
-  bool vrc6On =
-      processorRef.getAPVTS().getRawParameterValue("vrc6Enable")->load() > 0.5f;
-
   for (int i = 0; i < kNumStrips; ++i) {
     auto r = rowsFor(stripBounds(i), i < 2);
     auto whole = stripBounds(i);
@@ -631,15 +619,19 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
     g.setFont(px(6.5f));
     g.drawText(kShort[i], r.tab, juce::Justification::centred);
 
-    // static ON/OFF LED for DMC + VRC6 P2/SAW (no own toggle)
-    if (i == 4 || i == 6 || i == 7) {
+    // ON/OFF row — stylized painted toggle, uniform across all strips
+    {
+      static const char *enId[8] = {"pulse1Enable", "pulse2Enable",
+                                    "triangleEnable", "noiseEnable", "dmcEnable",
+                                    "vrc6Enable", "vrc6Enable", "vrc6Enable"};
+      bool on =
+          processorRef.getAPVTS().getRawParameterValue(enId[i])->load() > 0.5f;
       bevelIn(g, r.onoff.toFloat(), juce::Colour(0xff34332b), 3.0f);
-      bool on = (i == 4) ? true : vrc6On;
-      led(g, {(float)r.onoff.getX() + 9, (float)r.onoff.getCentreY()}, 4.5f,
+      led(g, {(float)r.onoff.getX() + 14, (float)r.onoff.getCentreY()}, 5.5f,
           kColor[i], on);
       g.setColour(on ? juce::Colour(0xffe6e2d6) : juce::Colour(0xff76736b));
-      g.setFont(px(6.0f));
-      g.drawText(on ? "ON" : "OFF", r.onoff.withTrimmedLeft(20),
+      g.setFont(px(7.0f));
+      g.drawText(on ? "ON" : "OFF", r.onoff.withTrimmedLeft(32),
                  juce::Justification::centredLeft);
     }
 
@@ -713,13 +705,7 @@ void NessyAudioProcessorEditor::resizedContent() {
     auto r = rowsFor(stripBounds(i), i < 2);
 
     // ON/OFF toggle (P1 P2 TRI NSE -> own; VRC6 P1 -> vrc6Enable)
-    gm::GmToggleButton *en = nullptr;
-    if (i == 0) en = pulse1Toggle.get();
-    else if (i == 1) en = pulse2Toggle.get();
-    else if (i == 2) en = triangleToggle.get();
-    else if (i == 3) en = noiseToggle.get();
-    else if (i == 5) en = vrc6EnableToggle.get();
-    if (en) en->setBounds(r.onoff);
+    // ON/OFF toggle is painted (see paint) + hit-tested (see mouseDown)
 
     // readout-row control
     gm::ComboSelector *duty = nullptr;
@@ -772,6 +758,18 @@ void NessyAudioProcessorEditor::mouseDown(const juce::MouseEvent &e) {
   if (gp.arp.contains(pos)) { toggleBool("arpEnable"); return; }
   if (gp.aBtn.contains(pos)) { toggleBool("portamentoEnable"); return; }
   if (gp.bBtn.contains(pos)) { setChoice("voiceMode", 1); return; } // Pitch-Split
+
+  // Channel ON/OFF toggles (painted)
+  {
+    static const char *enId[8] = {"pulse1Enable", "pulse2Enable",
+                                  "triangleEnable", "noiseEnable", "dmcEnable",
+                                  "vrc6Enable", "vrc6Enable", "vrc6Enable"};
+    for (int i = 0; i < kNumStrips; ++i)
+      if (rowsFor(stripBounds(i), i < 2).onoff.contains(pos)) {
+        toggleBool(enId[i]);
+        return;
+      }
+  }
 
   auto segs = themeSegmentRects();
   for (int i = 0; i < 3; ++i)
