@@ -4,56 +4,13 @@
 #include "apu/NessyAPU.h"
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <memory>
-#include <vector>
 
-
-// 8-bit Style Oscilloscope component
-class ChannelOscilloscope : public juce::Component {
-public:
-  ChannelOscilloscope(int channelIdx, const NessyAPU &apu)
-      : channel(channelIdx), apuRef(apu) {}
-
-  void paint(juce::Graphics &g) override {
-    auto bounds = getLocalBounds().toFloat();
-    auto buffer = apuRef.getVisualizerBuffer(channel);
-
-    if (buffer == nullptr)
-      return;
-
-    g.setColour(juce::Colours::white.withAlpha(0.6f));
-
-    const int numSamples = NessyAPU::VISUALIZER_BUFFER_SIZE;
-    const float midY = bounds.getCentreY();
-    const float height = bounds.getHeight() * 0.8f;
-
-    juce::Path p;
-    bool started = false;
-
-    // We only draw 64 segments to keep it "blocky/pixelated"
-    const int steps = 64;
-    const float xStep = bounds.getWidth() / (float)steps;
-
-    for (int i = 0; i < steps; ++i) {
-      int sampleIdx = (i * numSamples) / steps;
-      float x = (float)i * xStep;
-      float y = midY - (buffer[sampleIdx] * height * 0.5f);
-
-      if (!started) {
-        p.startNewSubPath(x, y);
-        started = true;
-      } else {
-        p.lineTo(x, y);
-      }
-    }
-
-    g.strokePath(p, juce::PathStrokeType(2.0f, juce::PathStrokeType::mitered,
-                                         juce::PathStrokeType::butt));
-  }
-
-private:
-  int channel;
-  const NessyAPU &apuRef;
-};
+// ghostmoon UI catalog
+#include <Knob.h>
+#include <GmToggleButton.h>
+#include <ComboSelector.h>
+#include <HSlider.h>
+#include <Oscilloscope.h>
 
 class NessyAudioProcessorEditor : public juce::AudioProcessorEditor,
                                   private juce::Timer {
@@ -65,76 +22,62 @@ public:
   void resized() override;
 
 private:
-  void timerCallback() override { repaint(); }
+  void timerCallback() override;
   NessyAudioProcessor &processorRef;
 
-  // Virtual keyboard for standalone testing
+  // Virtual keyboard
   juce::MidiKeyboardComponent keyboard;
 
   // Master volume
-  juce::Slider masterVolumeSlider;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
-      masterVolumeAttachment;
+  std::unique_ptr<gm::Knob> masterVolume;
 
-  // Channel enable toggles
-  juce::ToggleButton pulse1Toggle{"P1"};
-  juce::ToggleButton pulse2Toggle{"P2"};
-  juce::ToggleButton triangleToggle{"TRI"};
-  juce::ToggleButton noiseToggle{"NSE"};
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
-      pulse1Attachment;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
-      pulse2Attachment;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
-      triangleAttachment;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
-      noiseAttachment;
+  // Channel enable toggles (P1, P2, TRI, NSE)
+  std::unique_ptr<gm::GmToggleButton> pulse1Toggle;
+  std::unique_ptr<gm::GmToggleButton> pulse2Toggle;
+  std::unique_ptr<gm::GmToggleButton> triangleToggle;
+  std::unique_ptr<gm::GmToggleButton> noiseToggle;
 
   // Duty cycle selectors
-  juce::ComboBox pulse1DutyBox;
-  juce::ComboBox pulse2DutyBox;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
-      pulse1DutyAttachment;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
-      pulse2DutyAttachment;
+  std::unique_ptr<gm::ComboSelector> pulse1Duty;
+  std::unique_ptr<gm::ComboSelector> pulse2Duty;
 
-  // Voice mode selector
-  juce::ComboBox voiceModeBox;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
-      voiceModeAttachment;
+  // Voice mode
+  std::unique_ptr<gm::ComboSelector> voiceMode;
 
-  // Split point slider (for Pitch-Split mode)
-  juce::Slider splitPointSlider;
-  juce::Label splitPointLabel{"", "Split"};
-  std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
-      splitPointAttachment;
+  // Split point
+  std::unique_ptr<gm::HSlider> splitPoint;
 
-  // Noise mode toggle
-  juce::ToggleButton noiseModeToggle{"Short"};
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
-      noiseModeAttachment;
+  // Noise mode
+  std::unique_ptr<gm::GmToggleButton> noiseModeToggle;
 
-  // VRC6 Expansion controls
-  juce::ToggleButton vrc6EnableToggle{"VRC6"};
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
-      vrc6EnableAttachment;
+  // Portamento
+  std::unique_ptr<gm::GmToggleButton> portamentoToggle;
+  std::unique_ptr<gm::HSlider> portamentoSpeed;
 
-  juce::ComboBox vrc6Pulse1DutyBox;
-  juce::ComboBox vrc6Pulse2DutyBox;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
-      vrc6Pulse1DutyAttachment;
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
-      vrc6Pulse2DutyAttachment;
+  // VRC6 Expansion
+  std::unique_ptr<gm::GmToggleButton> vrc6EnableToggle;
+  std::unique_ptr<gm::ComboSelector> vrc6Pulse1Duty;
+  std::unique_ptr<gm::ComboSelector> vrc6Pulse2Duty;
 
+  // Macro preset selectors (one per channel: P1, P2, TRI, NSE, VRC6_P1, VRC6_P2, VRC6_SAW)
+  std::unique_ptr<gm::ComboSelector> macroBoxes[7];
+
+  // Hardware Sweep (Pulse 1 & 2)
+  std::unique_ptr<gm::GmToggleButton> sweepEnables[2];
+  std::unique_ptr<gm::ComboSelector> sweepDirs[2];
+  std::unique_ptr<gm::ComboSelector> sweepRates[2];
+  std::unique_ptr<gm::ComboSelector> sweepShifts[2];
+
+  // Arpeggiator
+  std::unique_ptr<gm::GmToggleButton> arpToggle;
+  std::unique_ptr<gm::ComboSelector> arpPattern;
+  std::unique_ptr<gm::ComboSelector> arpOctaves;
+
+  // Oscilloscopes (P1, P2, TRI, NSE, VRC6_P1, VRC6_P2, VRC6_SAW)
+  std::unique_ptr<gm::Oscilloscope> scopes[7];
+
+  // Background image
   juce::Image backgroundImage;
-
-  // Oscilloscopes
-  std::vector<std::unique_ptr<ChannelOscilloscope>> oscilloscopes;
-
-  // Macro preset combo boxes (one per channel)
-  juce::ComboBox macroBoxes[7];
-  std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
-      macroAttachments[7];
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NessyAudioProcessorEditor)
 };

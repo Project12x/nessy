@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(Nessy VERSION 0.1.0)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # CPM for dependency management
@@ -16,6 +16,10 @@ CPMAddPackage(
         "JUCE_BUILD_EXAMPLES OFF"
         "JUCE_BUILD_EXTRAS OFF"
 )
+
+# ghostmoon framework (sibling repo)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../ghostmoon/dsp ghostmoon_dsp_build)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../ghostmoon/ui ghostmoon_ui_build)
 
 # Nessy VST Plugin
 juce_add_plugin(Nessy
@@ -49,6 +53,7 @@ target_sources(Nessy
         src/apu/NessyAPU.cpp
         src/apu/VoiceAllocator.cpp
         src/apu/MacroEngine.cpp
+        src/apu/Arpeggiator.cpp
         
         # Blip_Buffer (LGPL - bandlimited synthesis)
         src/apu/blip_buffer/Blip_Buffer.cpp
@@ -73,6 +78,8 @@ target_include_directories(Nessy
 target_link_libraries(Nessy
     PRIVATE
         NessyFonts
+        ghostmoon_dsp
+        ghostmoon_ui
         juce::juce_audio_utils
         juce::juce_audio_processors
         juce::juce_dsp

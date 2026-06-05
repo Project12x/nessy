@@ -4,6 +4,12 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <memory>
 
+// ghostmoon DSP utilities
+#include <ghostmoon/SafetyLimiter.h>
+#include <ghostmoon/DCBlocker.h>
+#include <ghostmoon/CpuMeter.h>
+#include <ghostmoon/ParamSmoother.h>
+
 class NessyAPU;
 class VoiceAllocator;
 
@@ -44,6 +50,12 @@ public:
   // Access to APVTS for UI controls
   juce::AudioProcessorValueTreeState &getAPVTS() { return parameters; }
 
+  // Access to APU for UI oscilloscopes
+  NessyAPU *getAPU() { return apu.get(); }
+
+  // CPU load for diagnostics
+  float getCpuLoad() const { return cpuMeter.getLoadPercent(); }
+
 private:
   // Audio parameters
   juce::AudioProcessorValueTreeState parameters;
@@ -59,6 +71,15 @@ private:
 
   // Current sample rate
   double currentSampleRate = 44100.0;
+
+  // Last MIDI velocity for arpeggiator dispatch
+  float lastVelocity = 0.8f;
+
+  // ghostmoon DSP chain
+  gm::SafetyLimiter safetyLimiter;
+  gm::DCBlocker dcBlockerL, dcBlockerR;
+  gm::CpuMeter cpuMeter;
+  gm::ParamSmoother<float> volumeSmoother{0.02f};
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NessyAudioProcessor)
 };

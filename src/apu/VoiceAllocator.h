@@ -42,6 +42,10 @@ public:
   void noteOff(int midiChannel, int noteNumber);
   void allNotesOff();
 
+  // Arpeggiator dispatch (called at 60Hz by arp callback)
+  void arpNoteOn(int midiNote, float velocity);
+  void arpNoteOff();
+
   // Get which NES channel is playing a given note (-1 if none)
   int getChannelForNote(int noteNumber) const;
 
@@ -82,4 +86,8 @@ private:
 
   std::array<Voice, NUM_TOTAL_VOICES> m_voices;
   uint32_t m_timestamp = 0;
+
+  // Arp state: which channel is currently playing the arp note
+  int m_arpChannel = -1;
+  int m_arpLastNote = -1;
 };

@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "apu/Arpeggiator.h"
 #include "apu/NessyAPU.h"
 #include "apu/VoiceAllocator.h"
 
@@ -79,6 +80,47 @@ createParameterLayout() {
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID(macroIds[i], 1), macroNames[i], macroPresetNames, 0));
 
+  // Hardware Sweep (Pulse 1 & 2 only)
+  juce::StringArray sweepDirChoices{"Down", "Up"};
+  juce::StringArray sweepRateChoices{"R: 0", "R: 1", "R: 2", "R: 3", "R: 4", "R: 5", "R: 6", "R: 7"};
+  juce::StringArray sweepShiftChoices{"S: 0", "S: 1", "S: 2", "S: 3", "S: 4", "S: 5", "S: 6", "S: 7"};
+  
+  // Pulse 1 Sweep
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID("sweep1Enable", 1), "Pulse 1 Sweep Enable", false));
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID("sweep1Dir", 1), "Pulse 1 Sweep Direction", sweepDirChoices, 0));
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID("sweep1Rate", 1), "Pulse 1 Sweep Rate", sweepRateChoices, 0));
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID("sweep1Shift", 1), "Pulse 1 Sweep Shift", sweepShiftChoices, 0));
+      
+  // Pulse 2 Sweep
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID("sweep2Enable", 1), "Pulse 2 Sweep Enable", false));
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID("sweep2Dir", 1), "Pulse 2 Sweep Direction", sweepDirChoices, 0));
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID("sweep2Rate", 1), "Pulse 2 Sweep Rate", sweepRateChoices, 0));
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID("sweep2Shift", 1), "Pulse 2 Sweep Shift", sweepShiftChoices, 0));
+
+  // Portamento
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID("portamentoEnable", 1), "Portamento Enable", false));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID("portamentoSpeed", 1), "Portamento Speed",
+      juce::NormalisableRange<float>(1.0f, 255.0f, 1.0f), 16.0f));
+
+  // Arpeggiator
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID("arpEnable", 1), "Arpeggiator Enable", false));
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID("arpPattern", 1), "Arp Pattern",
+      juce::StringArray{"Up", "Down", "UpDown", "Random"}, 0));
+  layout.add(std::make_unique<juce::AudioParameterInt>(
+      juce::ParameterID("arpOctaves", 1), "Arp Octaves", 1, 4, 1));
+
   return layout;
 }
 
@@ -90,6 +132,11 @@ NessyAudioProcessor::NessyAudioProcessor()
       apu(std::make_unique<NessyAPU>()),
       voiceAllocator(std::make_unique<VoiceAllocator>()) {
   voiceAllocator->setAPU(apu.get());
+
+  // Arp callback: when arpeggiator ticks, route note through voice allocator
+  apu->setArpCallback([this](int note) {
+    voiceAllocator->arpNoteOn(note, lastVelocity);
+  });
 }
 
 NessyAudioProcessor::~NessyAudioProcessor() {}
@@ -133,6 +180,13 @@ void NessyAudioProcessor::prepareToPlay(double sampleRate,
   // VRC6 expansion
   apu->setVRC6Enabled(parameters.getRawParameterValue("vrc6Enable")->load() >
                       0.5f);
+
+  // ghostmoon DSP chain
+  safetyLimiter.prepare(sampleRate);
+  dcBlockerL.prepare(sampleRate);
+  dcBlockerR.prepare(sampleRate);
+  volumeSmoother.prepare(sampleRate);
+  volumeSmoother.snapTo(parameters.getRawParameterValue("masterVolume")->load());
 }
 
 void NessyAudioProcessor::releaseResources() {
@@ -197,32 +251,86 @@ void NessyAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     apu->setMacroPreset(macroChannels[i],
         static_cast<int>(parameters.getRawParameterValue(macroIds[i])->load()));
 
+  // Sync Hardware Sweep Configs
+  apu->setManualSweepConfig(
+      0, // Pulse 1
+      parameters.getRawParameterValue("sweep1Enable")->load() > 0.5f,
+      parameters.getRawParameterValue("sweep1Dir")->load() > 0.5f,
+      static_cast<int>(parameters.getRawParameterValue("sweep1Rate")->load()),
+      static_cast<int>(parameters.getRawParameterValue("sweep1Shift")->load()));
+  apu->setManualSweepConfig(
+      1, // Pulse 2
+      parameters.getRawParameterValue("sweep2Enable")->load() > 0.5f,
+      parameters.getRawParameterValue("sweep2Dir")->load() > 0.5f,
+      static_cast<int>(parameters.getRawParameterValue("sweep2Rate")->load()),
+      static_cast<int>(parameters.getRawParameterValue("sweep2Shift")->load()));
+
+  // Sync Portamento Config
+  bool portamentoEnable = parameters.getRawParameterValue("portamentoEnable")->load() > 0.5f;
+  float portamentoSpeed = parameters.getRawParameterValue("portamentoSpeed")->load();
+  apu->setPortamento(portamentoEnable, portamentoSpeed);
+
+  // Sync Arpeggiator Config
+  bool arpEnabled = parameters.getRawParameterValue("arpEnable")->load() > 0.5f;
+  apu->setArpEnabled(arpEnabled);
+  apu->setArpPattern(static_cast<int>(parameters.getRawParameterValue("arpPattern")->load()));
+  apu->setArpOctaves(static_cast<int>(parameters.getRawParameterValue("arpOctaves")->load()));
+
   // Add virtual keyboard events to the MIDI buffer
   keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
 
-  // Process MIDI messages through voice allocator
+  // Process MIDI messages
+  auto* arpeggiator = apu->getArpeggiator();
   for (const auto metadata : midiMessages) {
     auto message = metadata.getMessage();
 
     if (message.isNoteOn()) {
-      voiceAllocator->noteOn(message.getChannel() - 1, message.getNoteNumber(),
-                             message.getFloatVelocity());
+      lastVelocity = message.getFloatVelocity();
+      if (arpEnabled) {
+        // Feed held notes to arpeggiator; it dispatches via 60Hz callback
+        arpeggiator->noteOn(message.getNoteNumber());
+      } else {
+        voiceAllocator->noteOn(message.getChannel() - 1, message.getNoteNumber(),
+                               message.getFloatVelocity());
+      }
     } else if (message.isNoteOff()) {
-      voiceAllocator->noteOff(message.getChannel() - 1,
-                              message.getNoteNumber());
+      if (arpEnabled) {
+        arpeggiator->noteOff(message.getNoteNumber());
+        // Release when all notes released
+        if (!arpeggiator->hasNotes())
+          voiceAllocator->arpNoteOff();
+      } else {
+        voiceAllocator->noteOff(message.getChannel() - 1,
+                                message.getNoteNumber());
+      }
     } else if (message.isAllNotesOff() || message.isAllSoundOff()) {
+      arpeggiator->reset();
       voiceAllocator->allNotesOff();
     }
   }
 
+  // CPU profiling start
+  cpuMeter.startBlock();
+
   // Generate audio from APU
   apu->process(leftChannel, rightChannel, numSamples);
 
-  // Apply master volume
+  // DC blocking (NES APU has DC offset, especially pulse/noise channels)
+  dcBlockerL.processBlock(leftChannel, numSamples);
+  dcBlockerR.processBlock(rightChannel, numSamples);
+
+  // Smoothed master volume (prevents zipper artifacts during automation)
   for (int i = 0; i < numSamples; ++i) {
-    leftChannel[i] *= masterVolume;
-    rightChannel[i] *= masterVolume;
+    float vol = volumeSmoother.process(masterVolume);
+    leftChannel[i] *= vol;
+    rightChannel[i] *= vol;
   }
+
+  // Safety limiter (NaN/Inf guard, soft limit, hard clip)
+  safetyLimiter.process(leftChannel, rightChannel, numSamples);
+
+  // CPU profiling end
+  cpuMeter.endBlock(currentSampleRate, numSamples);
 }
 
 juce::AudioProcessorEditor *NessyAudioProcessor::createEditor() {

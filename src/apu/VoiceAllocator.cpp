@@ -202,6 +202,28 @@ int VoiceAllocator::findChannelForPitch(int noteNumber) const {
   }
 }
 
+void VoiceAllocator::arpNoteOn(int midiNote, float velocity) {
+  if (!m_apu)
+    return;
+
+  // Release previous arp note if different
+  if (m_arpLastNote >= 0 && m_arpLastNote != midiNote) {
+    arpNoteOff();
+  }
+
+  // Route through the current voice mode (reuses existing allocation logic)
+  noteOn(0, midiNote, velocity);
+  m_arpLastNote = midiNote;
+}
+
+void VoiceAllocator::arpNoteOff() {
+  if (!m_apu || m_arpLastNote < 0)
+    return;
+
+  noteOff(0, m_arpLastNote);
+  m_arpLastNote = -1;
+}
+
 int VoiceAllocator::midiChannelToNesChannel(int midiChannel) const {
   // MIDI channel to NES channel mapping for reference
   switch (midiChannel) {

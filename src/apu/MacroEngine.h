@@ -73,6 +73,12 @@ public:
   // Silence / reset one channel
   void reset(int channel);
 
+  // Portamento control
+  void setPortamento(bool enable, float speed);
+
+  // When standalone arpeggiator is active, skip macro arpeggio sequences
+  void setArpeggiatorActive(bool active) { m_arpeggiatorActive = active; }
+
   static constexpr int NUM_CHANNELS = 8;
 
 private:
@@ -87,10 +93,16 @@ private:
     bool            released    = false;
     int             baseNote    = 60;
     float           velocity    = 1.0f;
+    float           portamentoOffset = 0.0f;
+    int             lastNote    = -1;
   };
 
   NessyAPU* m_apu = nullptr;
   std::array<ChannelState, NUM_CHANNELS> m_channels;
+  
+  bool m_portamentoEnable = false;
+  float m_portamentoSpeed = 16.0f;
+  bool m_arpeggiatorActive = false;
 
   void applyMacroTick(int channel);
   int  advance(int& pos, const MacroSequence& seq, bool released);

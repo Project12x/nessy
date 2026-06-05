@@ -4,6 +4,7 @@
 // GPL-3.0 - Uses NSFPlay cores from Dn-FamiTracker
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 
 // Forward declarations for NSFPlay types
@@ -12,6 +13,7 @@ class NES_APU;
 class NES_DMC;
 class NES_VRC6;
 } // namespace xgm
+class Arpeggiator;
 class Blip_Buffer;
 class NessyMemory;
 class MacroEngine;
@@ -88,11 +90,29 @@ public:
   void writePitchOffset(int channel, int periodOffset);
   uint8_t getPulseDutyReg(int pulseIndex) const;
 
+  // Hardware Sweep control
+  void setManualSweepConfig(int pulseIndex, bool enable, bool up, int rate, int shift);
+
+  // Portamento control
+  void setPortamento(bool enable, float speed);
+
   // Macro preset control (MacroPreset enum is in MacroEngine.h)
   void setMacroPreset(int channel, int presetId); // presetId = MacroPreset int
 
-private:
+  // Arpeggiator control
+  void setArpEnabled(bool enabled);
+  void setArpPattern(int patternId);  // 0=Up, 1=Down, 2=UpDown, 3=Random
+  void setArpOctaves(int octaves);    // 1-4
+  Arpeggiator* getArpeggiator();
+
+  // Arp callback: called at 60Hz with the next note to play
+  using ArpCallback = std::function<void(int midiNote)>;
+  void setArpCallback(ArpCallback cb) { m_arpCallback = std::move(cb); }
+
+  // Utility
   uint16_t midiToPeriod(int midiNote, int channel) const;
+
+private:
   void clockAPU(int cpuClocks);
 
   // NSFPlay cores
@@ -108,6 +128,10 @@ private:
 
   // Macro engine (60Hz register sequencer)
   std::unique_ptr<MacroEngine> m_macroEngine;
+
+  // Arpeggiator (60Hz held-note sequencer)
+  std::unique_ptr<Arpeggiator> m_arpeggiator;
+  ArpCallback m_arpCallback;
   double m_macroClockAccumulator = 0.0;
   static constexpr double MACRO_CLOCKS = 1789772.7 / 60.0; // ~29830 clocks
 
@@ -126,6 +150,15 @@ private:
   int m_vrc6PulseDuty[2] = {4, 4}; // Default 50% (8 levels: 0-7)
   bool m_noiseShortMode = false;
   bool m_vrc6Enabled = false;
+
+  // Hardware Sweep configuration
+  struct SweepConfig {
+    bool enable = false;
+    bool up = false;
+    int rate = 0;
+    int shift = 0;
+  };
+  SweepConfig m_sweepConfig[2];
 
   // Temporary buffer for Blip_Buffer output
   static constexpr int TEMP_BUFFER_SIZE = 4096;

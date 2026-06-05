@@ -14,21 +14,10 @@ const juce::Colour kPrimaryColor{0xffCC0000};
 const juce::Colour kSecondaryColor{0xff336699}; // Desaturated blue
 const juce::Colour kAccentColor{0xff669933};    // Desaturated green
 const juce::Colour kOrangeColor{0xffCC6600};    // Desaturated orange
+const juce::Colour kVRC6Purple{0xff9b59b6};
 
 juce::Typeface::Ptr loadTypeface(const char *data, size_t size) {
   return juce::Typeface::createSystemTypefaceFor(data, size);
-}
-
-juce::Typeface::Ptr getInterRegular() {
-  static auto typeface = loadTypeface(BinaryData::InterRegular_ttf,
-                                      BinaryData::InterRegular_ttfSize);
-  return typeface;
-}
-
-juce::Typeface::Ptr getInterBold() {
-  static auto typeface =
-      loadTypeface(BinaryData::InterBold_ttf, BinaryData::InterBold_ttfSize);
-  return typeface;
 }
 
 juce::Typeface::Ptr getPressStart() {
@@ -41,8 +30,41 @@ juce::Font getPixelFont(float height) {
   return juce::Font(juce::FontOptions(getPressStart()).withHeight(height));
 }
 
-// Utility for all UI labels to use the pixel font
 juce::Font getNESFont(float height) { return getPixelFont(height); }
+
+// NES-themed colors for ghostmoon combo selectors
+void styleCombo(gm::ComboSelector& combo) {
+  combo.setColour(gm::ComboSelector::comboBgColourId,      kDarkGreyColor);
+  combo.setColour(gm::ComboSelector::comboOutlineColourId, kHeaderColor);
+  combo.setColour(gm::ComboSelector::comboTextColourId,    juce::Colour(0xffcccccc));
+  combo.setColour(gm::ComboSelector::comboArrowColourId,   kNESRed);
+  combo.setColour(gm::ComboSelector::labelTextColourId,    kNESTextColor);
+  combo.setColour(gm::ComboSelector::focusRingColourId,    kNESRed);
+}
+
+void styleToggle(gm::GmToggleButton& toggle, juce::Colour ledColor) {
+  toggle.setColour(gm::GmToggleButton::buttonBgColourId,   kDarkGreyColor);
+  toggle.setColour(gm::GmToggleButton::buttonBgOnColourId, ledColor.withAlpha(0.2f));
+  toggle.setColour(gm::GmToggleButton::textOffColourId,    juce::Colour(0xff888888));
+  toggle.setColour(gm::GmToggleButton::textOnColourId,     juce::Colour(0xffcccccc));
+  toggle.setColour(gm::GmToggleButton::ledOnColourId,      ledColor);
+  toggle.setColour(gm::GmToggleButton::ledGlowColourId,    ledColor.withAlpha(0.25f));
+  toggle.setColour(gm::GmToggleButton::labelTextColourId,  kNESTextColor);
+  toggle.setColour(gm::GmToggleButton::focusRingColourId,  ledColor);
+}
+
+void styleScope(gm::Oscilloscope& scope, juce::Colour waveColor) {
+  scope.setColour(gm::Oscilloscope::backgroundColourId, kDarkGreyColor);
+  scope.setColour(gm::Oscilloscope::waveformColourId,   waveColor);
+  scope.setColour(gm::Oscilloscope::gridColourId,       juce::Colour(0xff444444));
+  scope.setColour(gm::Oscilloscope::borderColourId,     kHeaderColor);
+}
+
+// Channel accent colors indexed: P1, P2, TRI, NSE, VRC6_P1, VRC6_P2, VRC6_SAW
+const juce::Colour kChannelColors[7] = {
+    kPrimaryColor, kSecondaryColor, kAccentColor, kOrangeColor,
+    kVRC6Purple, kVRC6Purple.brighter(0.2f), kVRC6Purple.darker(0.1f)};
+
 } // namespace
 
 NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
@@ -55,153 +77,107 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
 
   auto &apvts = processorRef.getAPVTS();
 
-  // Master volume slider
-  masterVolumeSlider.setSliderStyle(juce::Slider::RotaryVerticalDrag);
-  masterVolumeSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 18);
-  masterVolumeSlider.setColour(juce::Slider::rotarySliderFillColourId,
-                               kDarkGreyColor);
-  masterVolumeSlider.setColour(juce::Slider::thumbColourId, kNESRed);
-  masterVolumeSlider.setColour(juce::Slider::textBoxTextColourId,
-                               kNESTextColor);
-  masterVolumeSlider.setColour(juce::Slider::textBoxOutlineColourId,
-                               juce::Colours::transparentBlack);
-  addAndMakeVisible(masterVolumeSlider);
-  masterVolumeAttachment =
-      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-          apvts, "masterVolume", masterVolumeSlider);
+  // --- Master volume knob ---
+  masterVolume = std::make_unique<gm::Knob>(apvts, "masterVolume", "VOL", "Master volume");
+  masterVolume->setColour(gm::Knob::labelTextColourId, kNESTextColor);
+  masterVolume->setColour(gm::Knob::valueTextColourId, kNESTextColor);
+  addAndMakeVisible(*masterVolume);
 
-  // Channel toggles
-  auto setupToggle = [this](juce::ToggleButton &toggle, juce::Colour color) {
-    toggle.setColour(juce::ToggleButton::tickColourId, color);
-    toggle.setColour(juce::ToggleButton::tickDisabledColourId,
-                     color.withAlpha(0.3f));
-    addAndMakeVisible(toggle);
+  // --- Channel enable toggles ---
+  auto makeToggle = [&](std::unique_ptr<gm::GmToggleButton>& btn,
+                        const juce::String& paramId, const juce::String& label,
+                        juce::Colour color) {
+    btn = std::make_unique<gm::GmToggleButton>();
+    btn->setup(apvts, paramId, label);
+    styleToggle(*btn, color);
+    addAndMakeVisible(*btn);
   };
 
-  setupToggle(pulse1Toggle, kPrimaryColor);
-  setupToggle(pulse2Toggle, kSecondaryColor);
-  setupToggle(triangleToggle, kAccentColor);
-  setupToggle(noiseToggle, kOrangeColor);
+  makeToggle(pulse1Toggle,   "pulse1Enable",   "P1",    kPrimaryColor);
+  makeToggle(pulse2Toggle,   "pulse2Enable",   "P2",    kSecondaryColor);
+  makeToggle(triangleToggle, "triangleEnable", "TRI",   kAccentColor);
+  makeToggle(noiseToggle,    "noiseEnable",    "NSE",   kOrangeColor);
+  makeToggle(noiseModeToggle,"noiseMode",      "Short", kOrangeColor);
+  makeToggle(portamentoToggle, "portamentoEnable", "Porta", kOrangeColor);
+  makeToggle(vrc6EnableToggle, "vrc6Enable",   "VRC6",  kVRC6Purple);
 
-  pulse1Attachment =
-      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-          apvts, "pulse1Enable", pulse1Toggle);
-  pulse2Attachment =
-      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-          apvts, "pulse2Enable", pulse2Toggle);
-  triangleAttachment =
-      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-          apvts, "triangleEnable", triangleToggle);
-  noiseAttachment =
-      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-          apvts, "noiseEnable", noiseToggle);
-
-  // Duty cycle combo boxes
-  auto setupDutyBox = [this](juce::ComboBox &box) {
-    box.addItem("12.5%", 1);
-    box.addItem("25%", 2);
-    box.addItem("50%", 3);
-    box.addItem("75%", 4);
-    box.setColour(juce::ComboBox::backgroundColourId, kBackgroundColor);
-    box.setColour(juce::ComboBox::textColourId, kNESTextColor);
-    box.setColour(juce::ComboBox::outlineColourId, kDarkGreyColor);
-    addAndMakeVisible(box);
+  // --- Duty cycle selectors ---
+  const juce::StringArray dutyChoices = {"12.5%", "25%", "50%", "75%"};
+  auto makeCombo = [&](std::unique_ptr<gm::ComboSelector>& sel,
+                       const juce::String& paramId, const juce::String& label,
+                       const juce::StringArray& choices) {
+    sel = std::make_unique<gm::ComboSelector>();
+    sel->setup(apvts, paramId, label, choices);
+    styleCombo(*sel);
+    addAndMakeVisible(*sel);
   };
 
-  setupDutyBox(pulse1DutyBox);
-  setupDutyBox(pulse2DutyBox);
+  makeCombo(pulse1Duty, "pulse1Duty", "Duty", dutyChoices);
+  makeCombo(pulse2Duty, "pulse2Duty", "Duty", dutyChoices);
 
-  pulse1DutyAttachment =
-      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-          apvts, "pulse1Duty", pulse1DutyBox);
-  pulse2DutyAttachment =
-      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-          apvts, "pulse2Duty", pulse2DutyBox);
+  // --- Voice mode ---
+  makeCombo(voiceMode, "voiceMode", "Voice", {"Round-Robin", "Pitch-Split", "Unison"});
 
-  // Voice mode selector
-  voiceModeBox.addItem("Round-Robin", 1);
-  voiceModeBox.addItem("Pitch-Split", 2);
-  voiceModeBox.addItem("Unison", 3);
-  voiceModeBox.setColour(juce::ComboBox::backgroundColourId, kBackgroundColor);
-  voiceModeBox.setColour(juce::ComboBox::textColourId, kNESTextColor);
-  voiceModeBox.setColour(juce::ComboBox::outlineColourId, kDarkGreyColor);
-  addAndMakeVisible(voiceModeBox);
-  voiceModeAttachment =
-      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-          apvts, "voiceMode", voiceModeBox);
+  // --- Split point ---
+  splitPoint = std::make_unique<gm::HSlider>(apvts, "splitPoint", "Split", "Low", "High");
+  splitPoint->setColour(gm::HSlider::labelTextColourId, kNESTextColor);
+  addAndMakeVisible(*splitPoint);
 
-  // Split point slider
-  splitPointSlider.setSliderStyle(juce::Slider::LinearHorizontal);
-  splitPointSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 40, 20);
-  splitPointSlider.setColour(juce::Slider::thumbColourId, kSecondaryColor);
-  splitPointSlider.setColour(juce::Slider::trackColourId, kHeaderColor);
-  addAndMakeVisible(splitPointSlider);
-  splitPointLabel.setColour(juce::Label::textColourId, kNESTextColor);
-  splitPointLabel.setFont(getNESFont(10.0f));
-  splitPointAttachment =
-      std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
-          apvts, "splitPoint", splitPointSlider);
+  // --- Portamento speed ---
+  portamentoSpeed = std::make_unique<gm::HSlider>(apvts, "portamentoSpeed", "Speed", "Slow", "Fast");
+  portamentoSpeed->setColour(gm::HSlider::labelTextColourId, kNESTextColor);
+  addAndMakeVisible(*portamentoSpeed);
 
-  // Noise mode toggle
-  noiseModeToggle.setColour(juce::ToggleButton::tickColourId, kOrangeColor);
-  addAndMakeVisible(noiseModeToggle);
-  noiseModeAttachment =
-      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-          apvts, "noiseMode", noiseModeToggle);
+  // --- VRC6 duty boxes (8 levels) ---
+  const juce::StringArray vrc6DutyChoices = {
+      "6.25%", "12.5%", "18.75%", "25%", "31.25%", "37.5%", "43.75%", "50%"};
+  makeCombo(vrc6Pulse1Duty, "vrc6Pulse1Duty", "P1 Duty", vrc6DutyChoices);
+  makeCombo(vrc6Pulse2Duty, "vrc6Pulse2Duty", "P2 Duty", vrc6DutyChoices);
 
-  // VRC6 Expansion controls
-  vrc6EnableToggle.setColour(juce::ToggleButton::tickColourId,
-                             juce::Colour(0xff9b59b6)); // Purple
-  addAndMakeVisible(vrc6EnableToggle);
-  vrc6EnableAttachment =
-      std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-          apvts, "vrc6Enable", vrc6EnableToggle);
-
-  // VRC6 duty boxes (8 levels)
-  auto setupVrc6DutyBox = [this](juce::ComboBox &box) {
-    box.addItem("6.25%", 1);
-    box.addItem("12.5%", 2);
-    box.addItem("18.75%", 3);
-    box.addItem("25%", 4);
-    box.addItem("31.25%", 5);
-    box.addItem("37.5%", 6);
-    box.addItem("43.75%", 7);
-    box.addItem("50%", 8);
-    box.setColour(juce::ComboBox::backgroundColourId, kBackgroundColor);
-    box.setColour(juce::ComboBox::textColourId, kNESTextColor);
-    box.setColour(juce::ComboBox::outlineColourId, kDarkGreyColor);
-    addAndMakeVisible(box);
-  };
-  setupVrc6DutyBox(vrc6Pulse1DutyBox);
-  setupVrc6DutyBox(vrc6Pulse2DutyBox);
-
-  vrc6Pulse1DutyAttachment =
-      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-          apvts, "vrc6Pulse1Duty", vrc6Pulse1DutyBox);
-  vrc6Pulse2DutyAttachment =
-      std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-          apvts, "vrc6Pulse2Duty", vrc6Pulse2DutyBox);
-
-  // Macro preset combo boxes
+  // --- Macro preset combo boxes ---
   const char* macroParamIds[] = {
       "macroPulse1", "macroPulse2", "macroTri", "macroNoise",
       "macroVrc6P1", "macroVrc6P2", "macroVrc6Saw"};
-  juce::StringArray macroItems = {
+  const juce::StringArray macroItems = {
       "No Macro", "Plain", "Vibrato", "Vol Decay",
       "Arp Maj", "Arp Min", "Duty Sweep", "Stab"};
-  for (int i = 0; i < 7; ++i) {
-    for (int j = 0; j < macroItems.size(); ++j)
-      macroBoxes[i].addItem(macroItems[j], j + 1);
-    macroBoxes[i].setColour(juce::ComboBox::backgroundColourId, kBackgroundColor);
-    macroBoxes[i].setColour(juce::ComboBox::textColourId, kNESTextColor);
-    macroBoxes[i].setColour(juce::ComboBox::outlineColourId, kDarkGreyColor);
-    addAndMakeVisible(macroBoxes[i]);
-    macroAttachments[i] =
-        std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-            apvts, macroParamIds[i], macroBoxes[i]);
+  for (int i = 0; i < 7; ++i)
+    makeCombo(macroBoxes[i], macroParamIds[i], "Macro", macroItems);
+
+  // --- Hardware Sweep (Pulse 1 & 2) ---
+  const char* sweepEnableIds[] = {"sweep1Enable", "sweep2Enable"};
+  const char* sweepDirIds[]    = {"sweep1Dir",    "sweep2Dir"};
+  const char* sweepRateIds[]   = {"sweep1Rate",   "sweep2Rate"};
+  const char* sweepShiftIds[]  = {"sweep1Shift",  "sweep2Shift"};
+
+  juce::StringArray rateChoices, shiftChoices;
+  for (int j = 0; j <= 7; ++j) {
+    rateChoices.add("R: " + juce::String(j));
+    shiftChoices.add("S: " + juce::String(j));
   }
 
-  // Keyboard styling
+  for (int i = 0; i < 2; ++i) {
+    makeToggle(sweepEnables[i], sweepEnableIds[i], "Sweep",
+               i == 0 ? kPrimaryColor : kSecondaryColor);
+    makeCombo(sweepDirs[i],   sweepDirIds[i],   "Dir",   {"Down", "Up"});
+    makeCombo(sweepRates[i],  sweepRateIds[i],  "Rate",  rateChoices);
+    makeCombo(sweepShifts[i], sweepShiftIds[i], "Shift", shiftChoices);
+  }
+
+  // --- Arpeggiator controls ---
+  makeToggle(arpToggle, "arpEnable", "Arp", kNESRed);
+  makeCombo(arpPattern, "arpPattern", "Pattern", {"Up", "Down", "UpDown", "Random"});
+  makeCombo(arpOctaves, "arpOctaves", "Octaves", {"1", "2", "3", "4"});
+
+  // --- Oscilloscopes ---
+  for (int i = 0; i < 7; ++i) {
+    scopes[i] = std::make_unique<gm::Oscilloscope>();
+    styleScope(*scopes[i], kChannelColors[i]);
+    scopes[i]->setNumGridDivisions(2, 4);
+    addAndMakeVisible(*scopes[i]);
+  }
+
+  // --- Keyboard styling ---
   keyboard.setKeyWidth(35.0f);
   keyboard.setColour(juce::MidiKeyboardComponent::whiteNoteColourId,
                      juce::Colour(0xffeeeeee));
@@ -215,31 +191,31 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
                      kPrimaryColor.withAlpha(0.6f));
   addAndMakeVisible(keyboard);
 
-  // Initialize Oscilloscopes
-  auto *apu = processorRef.getAPU();
-  for (int i = 0; i < 7; ++i) {
-    // Mapping: P1, P2, TRI, NOISE, VRC6_P1, VRC6_P2, VRC6_SAW
-    int channelIdx = i;
-    if (i >= 4)
-      channelIdx = NessyAPU::VRC6_PULSE1 + (i - 4);
-
-    auto scope = std::make_unique<ChannelOscilloscope>(channelIdx, *apu);
-    addAndMakeVisible(*scope);
-    oscilloscopes.push_back(std::move(scope));
-  }
-
-  setSize(900, 560); // Wider for VRC6 section
-  startTimerHz(60);  // High rate for smooth scopes
+  setSize(900, 560);
+  startTimerHz(60);
 }
 
 NessyAudioProcessorEditor::~NessyAudioProcessorEditor() {}
+
+void NessyAudioProcessorEditor::timerCallback() {
+  // Feed APU visualizer buffers into ghostmoon oscilloscopes
+  auto *apu = processorRef.getAPU();
+  if (apu != nullptr) {
+    for (int i = 0; i < 7; ++i) {
+      int ch = (i < 4) ? i : (NessyAPU::VRC6_PULSE1 + (i - 4));
+      const float* buf = apu->getVisualizerBuffer(ch);
+      if (buf != nullptr)
+        scopes[i]->process(buf, NessyAPU::VISUALIZER_BUFFER_SIZE);
+    }
+  }
+  repaint(); // keyboard + background
+}
 
 void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
   // Main background (Tiled NES pattern)
   if (backgroundImage.isValid()) {
     g.setTiledImageFill(backgroundImage, 0, 0, 1.0f);
     g.fillAll();
-    // Darken slightly for readability
     g.fillAll(juce::Colours::black.withAlpha(0.2f));
   } else {
     g.fillAll(kBackgroundColor);
@@ -252,7 +228,6 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
   // Power LED
   g.setColour(kNESActiveRed);
   g.fillEllipse(15, 18, 12, 12);
-  // LED Glow
   {
     juce::Graphics::ScopedSaveState save(g);
     g.setOpacity(0.4f);
@@ -292,19 +267,15 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
     auto channelRect = juce::Rectangle<int>(
         x, channelArea.getY(), baseChannelWidth - 10, channelArea.getHeight());
 
-    // Colorful Channel background (blended)
     g.setColour(baseColors[i].withAlpha(0.15f));
     g.fillRoundedRectangle(channelRect.toFloat(), 5.0f);
 
-    // Recessed channel "groove" border
     g.setColour(baseColors[i].withAlpha(0.3f));
     g.drawRoundedRectangle(channelRect.toFloat(), 5.0f, 1.5f);
 
-    // Highlights for the groove
     g.setColour(juce::Colours::white.withAlpha(0.2f));
     g.drawRoundedRectangle(channelRect.toFloat().translated(0, 1), 5.0f, 1.0f);
 
-    // Label area
     g.setColour(kNESTextColor);
     g.setFont(getNESFont(10.0f));
     g.drawText(baseNames[i], x, channelArea.getY() - 25, baseChannelWidth - 10,
@@ -314,13 +285,10 @@ void NessyAudioProcessorEditor::paint(juce::Graphics &g) {
   // VRC6 section
   int vrc6Width = (channelArea.getWidth() - volumeWidth - sectionGap) / 3;
   auto vrc6X = baseX + baseWidth + sectionGap;
-  auto purple = juce::Colour(0xff9b59b6);
 
-  // VRC6 accent band
-  g.setColour(purple.withAlpha(0.4f));
+  g.setColour(kVRC6Purple.withAlpha(0.4f));
   g.fillRect(vrc6X - 5, channelArea.getY(), 2, channelArea.getHeight());
 
-  // VRC6 group header
   g.setColour(kNESTextColor);
   g.setFont(getNESFont(10.0f));
   g.drawText("VRC6", vrc6X, channelArea.getY() - 25, vrc6Width, 20,
@@ -346,13 +314,17 @@ void NessyAudioProcessorEditor::resized() {
   keyboard.setBounds(bounds.removeFromBottom(70));
 
   // Header area controls
-  voiceModeBox.setBounds(getWidth() - 150, 15, 130, 22);
+  voiceMode->setBounds(getWidth() - 150, 10, 130, 38);
+  portamentoToggle->setBounds(getWidth() - 340, 10, 70, 38);
+  portamentoSpeed->setBounds(getWidth() - 260, 10, 100, 38);
+  splitPoint->setBounds(getWidth() - 260, 38, 100, 28);
 
-  // Split point slider (below voice mode)
-  splitPointLabel.setBounds(getWidth() - 150, 40, 130, 15);
-  splitPointSlider.setBounds(getWidth() - 260, 40, 100, 15);
+  // Arpeggiator controls
+  arpToggle->setBounds(getWidth() - 520, 10, 60, 38);
+  arpPattern->setBounds(getWidth() - 455, 10, 80, 38);
+  arpOctaves->setBounds(getWidth() - 370, 10, 50, 38);
 
-  // Layout constants (Synced with paint())
+  // Layout constants (synced with paint())
   const int volumeWidth = 90;
   const int sectionGap = 20;
   auto channelArea =
@@ -364,14 +336,13 @@ void NessyAudioProcessorEditor::resized() {
   auto baseX = channelArea.getX() + volumeWidth;
 
   // Volume knob on left
-  masterVolumeSlider.setBounds(channelArea.getX(), channelArea.getY() + 30, 80,
-                               80);
+  masterVolume->setBounds(channelArea.getX(), channelArea.getY() + 20, 80, 90);
 
-  // Base APU channel toggles and controls
-  juce::ToggleButton *toggles[] = {&pulse1Toggle, &pulse2Toggle,
-                                   &triangleToggle, &noiseToggle};
-  juce::ComboBox *dutyBoxes[] = {&pulse1DutyBox, &pulse2DutyBox, nullptr,
-                                 nullptr};
+  // Base APU channel controls
+  gm::GmToggleButton* toggles[] = {pulse1Toggle.get(), pulse2Toggle.get(),
+                                    triangleToggle.get(), noiseToggle.get()};
+  gm::ComboSelector* dutyBoxes[] = {pulse1Duty.get(), pulse2Duty.get(),
+                                     nullptr, nullptr};
 
   for (int i = 0; i < 4; ++i) {
     auto x = baseX + i * baseChannelWidth;
@@ -379,29 +350,42 @@ void NessyAudioProcessorEditor::resized() {
         x, channelArea.getY(), baseChannelWidth - 10, channelArea.getHeight());
 
     // Enable toggle
-    toggles[i]->setBounds(channelRect.getX() + 10, channelRect.getY() + 40,
-                          channelRect.getWidth() - 20, 24);
+    toggles[i]->setBounds(channelRect.getX() + 10, channelRect.getY() + 30,
+                          channelRect.getWidth() - 20, 38);
 
     // Duty cycle or noise mode
     if (i < 2 && dutyBoxes[i] != nullptr) {
-      dutyBoxes[i]->setBounds(channelRect.getX() + 10, channelRect.getY() + 70,
-                              channelRect.getWidth() - 20, 22);
+      dutyBoxes[i]->setBounds(channelRect.getX() + 10, channelRect.getY() + 68,
+                              channelRect.getWidth() - 20, 38);
     } else if (i == 3) {
-      noiseModeToggle.setBounds(channelRect.getX() + 10,
-                                channelRect.getY() + 70,
-                                channelRect.getWidth() - 20, 22);
+      noiseModeToggle->setBounds(channelRect.getX() + 10,
+                                 channelRect.getY() + 68,
+                                 channelRect.getWidth() - 20, 38);
     }
 
-    // Macro preset box (below duty/noise controls)
-    macroBoxes[i].setBounds(channelRect.getX() + 10, channelRect.getY() + 98,
-                            channelRect.getWidth() - 20, 22);
+    // Macro preset box
+    macroBoxes[i]->setBounds(channelRect.getX() + 10, channelRect.getY() + 106,
+                             channelRect.getWidth() - 20, 38);
+
+    // Hardware Sweep (Pulse 1 & 2 only)
+    if (i < 2) {
+      int yOpt = channelRect.getY() + 144;
+      sweepEnables[i]->setBounds(channelRect.getX() + 10, yOpt,
+                                 channelRect.getWidth() - 20, 32);
+      yOpt += 34;
+      sweepDirs[i]->setBounds(channelRect.getX() + 10, yOpt,
+                              channelRect.getWidth() - 20, 32);
+      yOpt += 34;
+      int halfWidth = (channelRect.getWidth() - 24) / 2;
+      sweepRates[i]->setBounds(channelRect.getX() + 10, yOpt, halfWidth, 32);
+      sweepShifts[i]->setBounds(channelRect.getX() + 10 + halfWidth + 4, yOpt,
+                                halfWidth, 32);
+    }
 
     // Oscilloscope at bottom of groove
-    if (i < (int)oscilloscopes.size()) {
-      oscilloscopes[i]->setBounds(channelRect.getX() + 5,
-                                  channelArea.getBottom() - 100,
-                                  channelRect.getWidth() - 10, 60);
-    }
+    scopes[i]->setBounds(channelRect.getX() + 5,
+                         channelArea.getBottom() - 100,
+                         channelRect.getWidth() - 10, 60);
   }
 
   // VRC6 section: 3 channels
@@ -409,26 +393,22 @@ void NessyAudioProcessorEditor::resized() {
   int vrc6ChannelWidth = vrc6Width / 3;
   auto vrc6X = baseX + baseWidth + sectionGap;
 
-  // VRC6 enable toggle (spans section header area)
-  vrc6EnableToggle.setBounds(vrc6X + 5, channelArea.getY() + 10, 70, 22);
+  // VRC6 enable toggle
+  vrc6EnableToggle->setBounds(vrc6X + 5, channelArea.getY() + 10, 70, 32);
 
-  // VRC6 duty boxes in their respective sub-columns
-  vrc6Pulse1DutyBox.setBounds(vrc6X + 5, channelArea.getY() + 70,
-                              vrc6ChannelWidth - 10, 22);
-  vrc6Pulse2DutyBox.setBounds(vrc6X + vrc6ChannelWidth + 5,
-                              channelArea.getY() + 70, vrc6ChannelWidth - 10,
-                              22);
+  // VRC6 duty boxes
+  vrc6Pulse1Duty->setBounds(vrc6X + 5, channelArea.getY() + 60,
+                            vrc6ChannelWidth - 10, 38);
+  vrc6Pulse2Duty->setBounds(vrc6X + vrc6ChannelWidth + 5,
+                            channelArea.getY() + 60, vrc6ChannelWidth - 10, 38);
 
-  // VRC6 Oscilloscopes
+  // VRC6 Oscilloscopes + macro boxes
   for (int i = 0; i < 3; ++i) {
-    if (4 + i < (int)oscilloscopes.size()) {
-      oscilloscopes[4 + i]->setBounds(vrc6X + i * vrc6ChannelWidth + 5,
-                                      channelArea.getBottom() - 100,
-                                      vrc6ChannelWidth - 10, 60);
-    }
-    // VRC6 macro boxes (channels 4, 5, 6)
-    macroBoxes[4 + i].setBounds(vrc6X + i * vrc6ChannelWidth + 5,
-                                channelArea.getY() + 98,
-                                vrc6ChannelWidth - 10, 22);
+    scopes[4 + i]->setBounds(vrc6X + i * vrc6ChannelWidth + 5,
+                             channelArea.getBottom() - 100,
+                             vrc6ChannelWidth - 10, 60);
+    macroBoxes[4 + i]->setBounds(vrc6X + i * vrc6ChannelWidth + 5,
+                                 channelArea.getY() + 98,
+                                 vrc6ChannelWidth - 10, 38);
   }
 }

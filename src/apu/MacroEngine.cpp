@@ -73,6 +73,11 @@ ChannelMacroSet MacroEngine::makePreset(MacroPreset preset) {
 // ---------------------------------------------------------------------------
 // Public interface
 // ---------------------------------------------------------------------------
+void MacroEngine::setPortamento(bool enable, float speed) {
+  m_portamentoEnable = enable;
+  m_portamentoSpeed = speed;
+}
+
 void MacroEngine::setPreset(int channel, MacroPreset preset) {
   if (channel < 0 || channel >= NUM_CHANNELS) return;
   auto& ch     = m_channels[channel];
@@ -89,6 +94,17 @@ void MacroEngine::setPreset(int channel, MacroPreset preset) {
 void MacroEngine::noteOn(int channel, int midiNote, float velocity) {
   if (channel < 0 || channel >= NUM_CHANNELS) return;
   auto& ch       = m_channels[channel];
+  
+  // Setup portamento slide if overlapping
+  if (m_portamentoEnable && ch.lastNote != -1 && ch.active && m_apu) {
+    uint16_t oldPeriod = m_apu->midiToPeriod(ch.lastNote, channel);
+    uint16_t newPeriod = m_apu->midiToPeriod(midiNote, channel);
+    ch.portamentoOffset = static_cast<float>(oldPeriod) - static_cast<float>(newPeriod);
+  } else {
+    ch.portamentoOffset = 0.0f;
+  }
+  
+  ch.lastNote    = midiNote;
   ch.baseNote    = midiNote;
   ch.velocity    = velocity;
   ch.volPos      = 0;
@@ -121,8 +137,23 @@ void MacroEngine::reset(int channel) {
 // ---------------------------------------------------------------------------
 void MacroEngine::tick() {
   for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
-    if (m_channels[ch].active && m_channels[ch].preset != MacroPreset::NONE)
+    if (!m_channels[ch].active) continue;
+    
+    // Step portamento
+    bool portamentoActive = false;
+    if (m_channels[ch].portamentoOffset > 0.0f) {
+      m_channels[ch].portamentoOffset -= m_portamentoSpeed;
+      if (m_channels[ch].portamentoOffset < 0.0f) m_channels[ch].portamentoOffset = 0.0f;
+      portamentoActive = true;
+    } else if (m_channels[ch].portamentoOffset < 0.0f) {
+      m_channels[ch].portamentoOffset += m_portamentoSpeed;
+      if (m_channels[ch].portamentoOffset > 0.0f) m_channels[ch].portamentoOffset = 0.0f;
+      portamentoActive = true;
+    }
+
+    if (m_channels[ch].preset != MacroPreset::NONE || portamentoActive || m_portamentoEnable) {
       applyMacroTick(ch);
+    }
   }
 }
 
@@ -173,8 +204,8 @@ void MacroEngine::applyMacroTick(int channel) {
     }
   }
 
-  // --- Arpeggio ---
-  if (!m.arpeggio.empty()) {
+  // --- Arpeggio (skip when standalone arpeggiator is active) ---
+  if (!m.arpeggio.empty() && !m_arpeggiatorActive) {
     int semitoneOffset = advance(ch.arpPos, m.arpeggio, ch.released);
     int note = ch.baseNote + semitoneOffset;
     note = (note < 0) ? 0 : (note > 127 ? 127 : note);
@@ -182,8 +213,12 @@ void MacroEngine::applyMacroTick(int channel) {
   }
 
   // --- Pitch ---
+  bool writePitch = (!m.pitch.empty()) || ch.portamentoOffset != 0.0f || m_portamentoEnable;
+  int periodOffset = static_cast<int>(ch.portamentoOffset);
   if (!m.pitch.empty()) {
-    int periodOffset = advance(ch.pitchPos, m.pitch, ch.released);
+    periodOffset += advance(ch.pitchPos, m.pitch, ch.released);
+  }
+  if (writePitch) {
     m_apu->writePitchOffset(channel, periodOffset);
   }
 

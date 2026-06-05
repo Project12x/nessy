@@ -2,6 +2,7 @@
 // GPL-3.0 - Uses NSFPlay cores from Dn-FamiTracker
 
 #include "NessyAPU.h"
+#include "Arpeggiator.h"
 #include "NessyMemory.h"
 #include "MacroEngine.h"
 #include "blip_buffer/Blip_Buffer.h"
@@ -34,6 +35,7 @@ NessyAPU::NessyAPU() {
   m_memory      = std::make_unique<NessyMemory>();
   m_macroEngine = std::make_unique<MacroEngine>();
   m_macroEngine->setAPU(this);
+  m_arpeggiator = std::make_unique<Arpeggiator>();
 }
 
 NessyAPU::~NessyAPU() = default;
@@ -175,11 +177,18 @@ void NessyAPU::clockAPU(int cpuClocks) {
   if (m_vrc6Enabled)
     m_vrc6->Tick(cpuClocks);
 
-  // Macro engine: fire at ~60Hz (one NES frame)
+  // Macro engine + arpeggiator: fire at ~60Hz (one NES frame)
   m_macroClockAccumulator += cpuClocks;
   if (m_macroClockAccumulator >= MACRO_CLOCKS) {
     m_macroClockAccumulator -= MACRO_CLOCKS;
     m_macroEngine->tick();
+
+    // Arpeggiator tick — dispatch note change via callback
+    if (m_arpeggiator && m_arpeggiator->isEnabled() && m_arpeggiator->hasNotes()) {
+      int note = m_arpeggiator->tick();
+      if (note >= 0 && m_arpCallback)
+        m_arpCallback(note);
+    }
   }
 }
 
@@ -200,6 +209,12 @@ void NessyAPU::noteOn(int channel, int midiNote, float velocity) {
   case PULSE1: {
     uint8_t duty = static_cast<uint8_t>(m_pulseDuty[0]) << 6;
     writeRegister(0x4000, duty | 0x30 | volume);
+    // Write hardware sweep register ($4001) EPPPNSSS
+    uint8_t sweep = (m_sweepConfig[0].enable ? 0x80 : 0x00) |
+                    ((m_sweepConfig[0].rate & 0x07) << 4) |
+                    (m_sweepConfig[0].up ? 0x08 : 0x00) |
+                    (m_sweepConfig[0].shift & 0x07);
+    writeRegister(0x4001, sweep);
     writeRegister(0x4002, period & 0xFF);
     writeRegister(0x4003, ((period >> 8) & 0x07) | 0xF8);
     break;
@@ -207,6 +222,12 @@ void NessyAPU::noteOn(int channel, int midiNote, float velocity) {
   case PULSE2: {
     uint8_t duty = static_cast<uint8_t>(m_pulseDuty[1]) << 6;
     writeRegister(0x4004, duty | 0x30 | volume);
+    // Write hardware sweep register ($4005) EPPPNSSS
+    uint8_t sweep = (m_sweepConfig[1].enable ? 0x80 : 0x00) |
+                    ((m_sweepConfig[1].rate & 0x07) << 4) |
+                    (m_sweepConfig[1].up ? 0x08 : 0x00) |
+                    (m_sweepConfig[1].shift & 0x07);
+    writeRegister(0x4005, sweep);
     writeRegister(0x4006, period & 0xFF);
     writeRegister(0x4007, ((period >> 8) & 0x07) | 0xF8);
     break;
@@ -479,4 +500,41 @@ uint16_t NessyAPU::midiToPeriod(int midiNote, int channel) const {
   // VRC6 has 12-bit period, base NES has 11-bit
   double maxPeriod = (channel >= VRC6_PULSE1) ? 4095.0 : 2047.0;
   return static_cast<uint16_t>(juce::jlimit(0.0, maxPeriod, period));
+}
+
+void NessyAPU::setManualSweepConfig(int pulseIndex, bool enable, bool up, int rate, int shift) {
+  if (pulseIndex < 0 || pulseIndex > 1) return;
+  m_sweepConfig[pulseIndex].enable = enable;
+  m_sweepConfig[pulseIndex].up = up;
+  m_sweepConfig[pulseIndex].rate = rate;
+  m_sweepConfig[pulseIndex].shift = shift;
+}
+
+void NessyAPU::setPortamento(bool enable, float speed) {
+  if (m_macroEngine) {
+    m_macroEngine->setPortamento(enable, speed);
+  }
+}
+
+// --- Arpeggiator control ---
+
+void NessyAPU::setArpEnabled(bool enabled) {
+  if (m_arpeggiator)
+    m_arpeggiator->setEnabled(enabled);
+  if (m_macroEngine)
+    m_macroEngine->setArpeggiatorActive(enabled);
+}
+
+void NessyAPU::setArpPattern(int patternId) {
+  if (m_arpeggiator)
+    m_arpeggiator->setPattern(static_cast<Arpeggiator::Pattern>(patternId));
+}
+
+void NessyAPU::setArpOctaves(int octaves) {
+  if (m_arpeggiator)
+    m_arpeggiator->setOctaves(octaves);
+}
+
+Arpeggiator* NessyAPU::getArpeggiator() {
+  return m_arpeggiator.get();
 }

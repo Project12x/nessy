@@ -2,6 +2,9 @@
 build/
 out/
 
+# Preserved build artifacts (build-preservation workflow)
+releases/
+
 # IDE
 .vs/
 .vscode/
