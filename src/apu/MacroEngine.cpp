@@ -81,6 +81,10 @@ void MacroEngine::setPortamento(bool enable, float speed) {
 void MacroEngine::setPreset(int channel, MacroPreset preset) {
   if (channel < 0 || channel >= NUM_CHANNELS) return;
   auto& ch     = m_channels[channel];
+  // Idempotent: processBlock re-syncs presets every audio block. Only rebuild
+  // on an actual change -- otherwise we'd clear `active` (freezing held-note
+  // macros) and reallocate the sequence vectors on the audio thread each block.
+  if (preset == ch.preset) return;
   ch.preset    = preset;
   ch.macros    = makePreset(preset);
   ch.volPos    = 0;

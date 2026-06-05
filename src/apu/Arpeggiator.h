@@ -25,8 +25,13 @@ public:
   void reset();
 
   void setEnabled(bool e) { enabled_ = e; }
-  void setPattern(Pattern p) { pattern_ = p; rebuildSequence(); }
-  void setOctaves(int oct) { octaves_ = (oct < 1) ? 1 : (oct > 4 ? 4 : oct); rebuildSequence(); }
+  void setPattern(Pattern p) { if (p == pattern_) return; pattern_ = p; rebuildSequence(); }
+  void setOctaves(int oct) {
+    int clamped = (oct < 1) ? 1 : (oct > 4 ? 4 : oct);
+    if (clamped == octaves_) return;
+    octaves_ = clamped;
+    rebuildSequence();
+  }
 
   bool isEnabled() const { return enabled_; }
   bool hasNotes() const { return heldCount_ > 0; }

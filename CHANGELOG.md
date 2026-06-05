@@ -25,6 +25,11 @@ Format: [keepachangelog.com](https://keepachangelog.com/en/1.0.0/)
 - Oscilloscope data feed moved from pull-in-paint to push-in-timerCallback via `gm::Oscilloscope::process()`
 - All APVTS attachments now managed internally by ghostmoon components (eliminated ~40 manual attachment members)
 
+### Fixed
+
+- **Hardware macros froze on sustained notes** — `processBlock` re-syncs macro presets every audio block, and `MacroEngine::setPreset` unconditionally cleared the channel's `active` flag (and reallocated the sequence vectors on the audio thread). Held-note macros (vibrato, vol decay, duty sweep, stab, macro-arpeggio) stopped advancing after the note-on block. Root cause: a per-block destructive setter. `setPreset` is now idempotent — it only rebuilds on an actual preset change.
+- **Arpeggiator re-sequenced every block** — same root cause: `setArpPattern`/`setArpOctaves` ran `rebuildSequence()` every block, which in Random mode re-shuffled ~90×/sec. The arp setters are now idempotent (no-op when unchanged).
+
 ### Previous Unreleased
 
 - Non-linear NES APU mixing using NESdev resistor-ladder formula (pulse/TND separation)
