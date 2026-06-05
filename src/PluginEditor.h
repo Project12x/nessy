@@ -3,6 +3,7 @@
 #include "PluginProcessor.h"
 #include "apu/NessyAPU.h"
 #include <juce_audio_utils/juce_audio_utils.h>
+#include <array>
 #include <memory>
 
 // ghostmoon UI catalog
@@ -11,72 +12,99 @@
 #include <ComboSelector.h>
 #include <HSlider.h>
 #include <Oscilloscope.h>
+#include <ScaledEditor.h>
 
-class NessyAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                  private juce::Timer {
+// ---------------------------------------------------------------------------
+// NessyTheme — one hardware skin (NES / Famicom / FDS).
+// Tokens mirror nessy.css :root + data-theme variables (see DESIGN.md).
+// Paint chrome reads from the active theme; gm components are recoloured via
+// per-instance setColour on each theme switch (ThemeManager is left untouched).
+// ---------------------------------------------------------------------------
+struct NessyTheme {
+  juce::String name;        // "NES" / "FC" / "FDS"
+  juce::String subtitle;    // header subtitle line
+
+  juce::Colour hdrA, hdrB, hdrDim;
+  juce::Colour stripe, wordmark, subtitleCol;
+  juce::Colour padShellA, padShellB, padPlateA, padPlateB, padAccent;
+  juce::Colour padAbHi, padAb, padAbLo;
+  juce::Colour railA, railB, chipA, chipB;
+  juce::Colour faceA, faceB, faceBorder, macroBg;
+  juce::Colour nameText, railText;
+  juce::Colour trayA, trayB;
+
+  static NessyTheme nes();
+  static NessyTheme famicom();
+  static NessyTheme fds();
+  static NessyTheme byIndex(int i); // 0=NES 1=FC 2=FDS
+};
+
+class NessyAudioProcessorEditor : public gm::ScaledEditor, private juce::Timer {
 public:
   explicit NessyAudioProcessorEditor(NessyAudioProcessor &);
   ~NessyAudioProcessorEditor() override;
 
   void paint(juce::Graphics &) override;
-  void resized() override;
+  void paintOverChildren(juce::Graphics &) override; // CRT glass + scanlines
+  void resizedContent() override;
+  void mouseDown(const juce::MouseEvent &) override;
+
+  static constexpr int kBaseW = 1040;
+  static constexpr int kBaseH = 508;
+  static constexpr int kNumStrips = 8; // P1 P2 TRI NSE DMC | VRC6 P1 P2 SAW
 
 private:
   void timerCallback() override;
+
+  // Theme handling
+  void setTheme(int index);     // swap palette, re-skin gm components, repaint
+  void applyThemeToControls();  // push current theme colours into gm components
+  const NessyTheme &theme() const { return currentTheme; }
+
+  // Geometry shared by paint() + resizedContent()
+  juce::Rectangle<int> headerBounds() const;
+  juce::Rectangle<int> deckBounds() const;
+  juce::Rectangle<int> stripBounds(int strip) const;   // outer faceplate
+  juce::Rectangle<int> themeSwitchBounds() const;
+  std::array<juce::Rectangle<int>, 3> themeSegmentRects() const;
+
   NessyAudioProcessor &processorRef;
 
-  // Virtual keyboard
-  juce::MidiKeyboardComponent keyboard;
+  NessyTheme currentTheme;
+  int themeIndex = 0;
 
-  // Master volume
+  // --- Controls (APVTS-bound gm components) ---
   std::unique_ptr<gm::Knob> masterVolume;
 
-  // Channel enable toggles (P1, P2, TRI, NSE)
-  std::unique_ptr<gm::GmToggleButton> pulse1Toggle;
-  std::unique_ptr<gm::GmToggleButton> pulse2Toggle;
-  std::unique_ptr<gm::GmToggleButton> triangleToggle;
-  std::unique_ptr<gm::GmToggleButton> noiseToggle;
+  // Per-strip enable toggles (P1 P2 TRI NSE have params; DMC/VRC6 handled below)
+  std::unique_ptr<gm::GmToggleButton> pulse1Toggle, pulse2Toggle,
+      triangleToggle, noiseToggle;
+  std::unique_ptr<gm::GmToggleButton> vrc6EnableToggle; // gates all 3 VRC6 strips
 
-  // Duty cycle selectors
-  std::unique_ptr<gm::ComboSelector> pulse1Duty;
-  std::unique_ptr<gm::ComboSelector> pulse2Duty;
+  // Readout-row controls
+  std::unique_ptr<gm::ComboSelector> pulse1Duty, pulse2Duty;
+  std::unique_ptr<gm::ComboSelector> vrc6Pulse1Duty, vrc6Pulse2Duty;
+  std::unique_ptr<gm::GmToggleButton> noiseModeToggle; // NSE readout (Long/Short)
 
-  // Voice mode
+  // Macro chips — index order P1 P2 TRI NSE VRC6P1 VRC6P2 SAW (DMC has none)
+  std::array<std::unique_ptr<gm::ComboSelector>, 7> macroBoxes;
+
+  // Global control cluster (header)
   std::unique_ptr<gm::ComboSelector> voiceMode;
-
-  // Split point
-  std::unique_ptr<gm::HSlider> splitPoint;
-
-  // Noise mode
-  std::unique_ptr<gm::GmToggleButton> noiseModeToggle;
-
-  // Portamento
-  std::unique_ptr<gm::GmToggleButton> portamentoToggle;
-  std::unique_ptr<gm::HSlider> portamentoSpeed;
-
-  // VRC6 Expansion
-  std::unique_ptr<gm::GmToggleButton> vrc6EnableToggle;
-  std::unique_ptr<gm::ComboSelector> vrc6Pulse1Duty;
-  std::unique_ptr<gm::ComboSelector> vrc6Pulse2Duty;
-
-  // Macro preset selectors (one per channel: P1, P2, TRI, NSE, VRC6_P1, VRC6_P2, VRC6_SAW)
-  std::unique_ptr<gm::ComboSelector> macroBoxes[7];
-
-  // Hardware Sweep (Pulse 1 & 2)
-  std::unique_ptr<gm::GmToggleButton> sweepEnables[2];
-  std::unique_ptr<gm::ComboSelector> sweepDirs[2];
-  std::unique_ptr<gm::ComboSelector> sweepRates[2];
-  std::unique_ptr<gm::ComboSelector> sweepShifts[2];
-
-  // Arpeggiator
   std::unique_ptr<gm::GmToggleButton> arpToggle;
-  std::unique_ptr<gm::ComboSelector> arpPattern;
-  std::unique_ptr<gm::ComboSelector> arpOctaves;
+  std::unique_ptr<gm::ComboSelector> arpPattern, arpOctaves;
+  std::unique_ptr<gm::GmToggleButton> portamentoToggle;
+  std::unique_ptr<gm::HSlider> splitPoint, portamentoSpeed;
 
-  // Oscilloscopes (P1, P2, TRI, NSE, VRC6_P1, VRC6_P2, VRC6_SAW)
-  std::unique_ptr<gm::Oscilloscope> scopes[7];
+  // Hardware sweep, woven into the P1/P2 strips
+  std::array<std::unique_ptr<gm::GmToggleButton>, 2> sweepEnables;
+  std::array<std::unique_ptr<gm::ComboSelector>, 2> sweepDirs, sweepRates,
+      sweepShifts;
 
-  // Background image
+  // Per-strip oscilloscopes (strip index == NessyAPU channel index)
+  std::array<std::unique_ptr<gm::Oscilloscope>, kNumStrips> scopes;
+
+  juce::MidiKeyboardComponent keyboard;
   juce::Image backgroundImage;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NessyAudioProcessorEditor)
