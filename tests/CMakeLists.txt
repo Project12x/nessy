@@ -14,5 +14,10 @@ target_include_directories(nessy_tests PRIVATE
 )
 target_link_libraries(nessy_tests PRIVATE Catch2::Catch2WithMain)
 
+# Copy ROM fixtures next to the test executable so relative paths resolve.
+add_custom_command(TARGET nessy_tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpu/roms $<TARGET_FILE_DIR:nessy_tests>/roms)
+
 # Run tests from the executable's own dir so relative paths (e.g. roms/) resolve.
 catch_discover_tests(nessy_tests WORKING_DIRECTORY $<TARGET_FILE_DIR:nessy_tests>)
