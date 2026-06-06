@@ -101,3 +101,9 @@ target_compile_definitions(Nessy
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_DISPLAY_SPLASH_SCREEN=0
 )
+
+option(NESSY_BUILD_TESTS "Build the Nessy test suite" ON)
+if(NESSY_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
