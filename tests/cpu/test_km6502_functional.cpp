@@ -14,7 +14,8 @@ TEST_CASE("km6502 executes a basic program", "[cpu]") {
     cpu.load(0x0600, prog, sizeof(prog));
     cpu.setPC(0x0600);
 
-    const uint32_t trap = cpu.runUntilTrap(100);
-    REQUIRE(trap == 0x0604);          // JMP-to-itself trap
-    REQUIRE(cpu.ram[0x10] == 0x42);   // STA wrote the accumulator
+    const auto trap = cpu.runUntilTrap(100);
+    REQUIRE(trap.has_value());
+    REQUIRE(*trap == 0x0604);          // JMP-to-itself trap
+    REQUIRE(cpu.ram[0x10] == 0x42);    // STA wrote the accumulator
 }

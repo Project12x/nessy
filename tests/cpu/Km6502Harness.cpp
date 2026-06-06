@@ -4,7 +4,12 @@
 #define USE_INLINEMMC   0
 #define USE_CALLBACK    1
 #define External static
-#include "km6502/km6502m.h"
+#include "km6502m.h"
+#undef ILLEGAL_OPCODES
+#undef USE_USERPOINTER
+#undef USE_INLINEMMC
+#undef USE_CALLBACK
+#undef External
 
 #include "Km6502Harness.h"
 
@@ -57,7 +62,7 @@ void Km6502Harness::step()
     K6502_Exec(&impl_->ctx);
 }
 
-uint32_t Km6502Harness::runUntilTrap(uint64_t instrLimit)
+std::optional<uint16_t> Km6502Harness::runUntilTrap(uint64_t instrLimit)
 {
     for (uint64_t i = 0; i < instrLimit; ++i) {
         const uint16_t before = static_cast<uint16_t>(impl_->ctx.PC);
@@ -65,5 +70,5 @@ uint32_t Km6502Harness::runUntilTrap(uint64_t instrLimit)
         if (static_cast<uint16_t>(impl_->ctx.PC) == before)
             return before;
     }
-    return 0xFFFFFFFFu;
+    return std::nullopt;
 }

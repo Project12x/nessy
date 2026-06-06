@@ -10,7 +10,7 @@ add_executable(nessy_tests
 target_compile_features(nessy_tests PRIVATE cxx_std_20)
 target_include_directories(nessy_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/cpu
-    ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/CPU
+    ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/CPU/km6502
 )
 target_link_libraries(nessy_tests PRIVATE Catch2::Catch2WithMain)
 
