@@ -18,6 +18,13 @@ First-party Nessy code (everything under `src/` authored for Nessy — including
 the NES "Front-Loader" `NessyLookAndFeel`/`NessyScope` and `background.png`) is
 **GPL-3.0-or-later**.
 
+### km6502 (6502 CPU core)
+- **Used by:** NSF player CPU (Phase A.1 foundation), via `src/apu/nsfplay/xgm/devices/CPU/km6502/`
+- **Source:** bbbradsmith/nsfplay @ 6af5406e3325b5507bea1ae1a57c77d5efe5c7f3, path `xgm/devices/CPU/km6502/`
+- **Author:** Mamiya
+- **License:** PDS (Public Domain Software) — see `km6502/km6502.txt`. No copyleft obligation.
+- **Reuse mode:** direct-copy (headers, unmodified)
+
 ## Compatibility summary
 
 NSFPlay (GPL-3.0) makes the combined work GPL-3.0. The remaining components flow
