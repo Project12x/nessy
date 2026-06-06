@@ -12,7 +12,7 @@ Macro sequencer (8 presets), standalone arpeggiator, manual hardware pitch sweep
 |---|---|
 | Standalone (`.exe`) | ✅ Builds & runs |
 | VST3 (`.vst3`) | ✅ Builds |
-| Tests (`nessy_tests`) | ✅ Catch2/CTest; km6502 passes Klaus Dormann functional test |
+| Tests (`nessy_tests`) | ✅ Catch2/CTest; km6502 passes Klaus Dormann functional test; MMC5/FDS/N163/VRC7/5B chips render non-silent |
 
 **Build command:**
 ```

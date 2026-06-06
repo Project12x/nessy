@@ -7,6 +7,7 @@ Format: [keepachangelog.com](https://keepachangelog.com/en/1.0.0/)
 ## [Unreleased]
 
 ### Added
+- **Expansion chips vendored + smoke-tested (NSF foundation, Phase A.2)** — MMC5, FDS, Namco 163, VRC7 (+ MIT emu2413 OPLL), and Sunsoft 5B (+ MIT emu2149 PSG) vendored and verified to render non-silent output in the test suite (`nessy_tests`). Not yet wired into the synth (Phase C). The only plugin-compiled change is an additive no-op `Read()` stub in `nes_cpu.h` (so MMC5 compiles); the synth's behavior is unchanged and `Nessy_Standalone` builds green.
 - **Test harness + validated 6502 core (NSF foundation, Phase A.1)** — Catch2 + CTest suite; vendored the public-domain `km6502` CPU core (nsfplay @6af5406) and validated it against the Klaus Dormann 6502 functional test. Foundation for the upcoming NSF player. No change to the synth.
 - **Hardware macro sequencer (MacroEngine)** — 60 Hz per-channel register sequencer with 8 presets (None, Plain, Vibrato, Vol Decay, Arp Major, Arp Minor, Duty Sweep, Stab) spanning volume/arpeggio/pitch/duty sequence types with loop and release points; per-channel preset selector in the UI
 - **Standalone arpeggiator** — held-note arpeggiator (Up/Down/UpDown/Random, 1–4 octaves) ticked at 60 Hz and routed through the active voice-allocation mode; adapted from the Breadbin SID synth
