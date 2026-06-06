@@ -30,6 +30,11 @@ the NES "Front-Loader" `NessyLookAndFeel`/`NessyScope` and `background.png`) is
 - **Source:** local `dn-famitracker-source/` (NSFPlay cores, same lineage as the vendored nes_apu/dmc/vrc6)
 - **License:** NSFPlay cores (GPL-compatible; Nessy is GPL-3.0). Reuse mode: direct-copy.
 
+### VRC7 (nes_vrc7) + emu2413 (OPLL FM core)
+- **Used by:** Phase A.2, `src/apu/nsfplay/xgm/devices/Sound/nes_vrc7.{cpp,h}` + `legacy/emu2413.*`
+- **VRC7 source:** local `dn-famitracker-source/` (NSFPlay core).
+- **emu2413 source:** local `dn-famitracker-source/Source/APU/digital-sound-antiques/`. Author: Mitsutaka Okazaki. **License: MIT** (see `legacy/LICENSE-emu2413`). Reuse mode: direct-copy. Compiled as C.
+
 ## Compatibility summary
 
 NSFPlay (GPL-3.0) makes the combined work GPL-3.0. The remaining components flow
