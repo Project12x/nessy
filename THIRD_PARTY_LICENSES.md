@@ -25,6 +25,11 @@ the NES "Front-Loader" `NessyLookAndFeel`/`NessyScope` and `background.png`) is
 - **License:** PDS (Public Domain Software) — see `km6502/km6502.txt`. No copyleft obligation.
 - **Reuse mode:** direct-copy (headers, unmodified)
 
+### NSFPlay expansion chips (MMC5, FDS, Namco 163)
+- **Used by:** Phase A.2 chip foundation, `src/apu/nsfplay/xgm/devices/Sound/nes_{mmc5,fds,n106}.{cpp,h}`
+- **Source:** local `dn-famitracker-source/` (NSFPlay cores, same lineage as the vendored nes_apu/dmc/vrc6)
+- **License:** NSFPlay cores (GPL-compatible; Nessy is GPL-3.0). Reuse mode: direct-copy.
+
 ## Compatibility summary
 
 NSFPlay (GPL-3.0) makes the combined work GPL-3.0. The remaining components flow

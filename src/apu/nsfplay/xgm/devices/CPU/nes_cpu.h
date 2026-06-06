@@ -36,6 +36,9 @@ class NES_CPU
 public:
   void StealCycles(unsigned int cycles) {}
 
+  // PCM read stub — MMC5 calls this for PCM mode; we don't support PCM playback.
+  bool Read(UINT32 /*adr*/, UINT32& val) { val = 0; return false; }
+
   // IRQ devices
   enum {
     IRQD_FRAME = 0,

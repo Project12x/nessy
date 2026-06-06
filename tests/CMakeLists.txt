@@ -14,6 +14,14 @@ target_include_directories(nessy_tests PRIVATE
 )
 target_link_libraries(nessy_tests PRIVATE Catch2::Catch2WithMain)
 
+target_sources(nessy_tests PRIVATE
+    cpu/test_expansion_chips.cpp
+    ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/nes_mmc5.cpp
+    ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/nes_fds.cpp
+    ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/nes_n106.cpp
+)
+target_include_directories(nessy_tests PRIVATE ${CMAKE_SOURCE_DIR}/src/apu/nsfplay)
+
 # Copy ROM fixtures next to the test executable so relative paths resolve.
 add_custom_command(TARGET nessy_tests POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
