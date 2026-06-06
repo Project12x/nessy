@@ -21,10 +21,15 @@ target_sources(nessy_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/nes_n106.cpp
     ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/nes_vrc7.cpp
     ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/legacy/emu2413.c
+    ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/nes_fme7.cpp
+    ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/legacy/emu2149.c
 )
 target_include_directories(nessy_tests PRIVATE ${CMAKE_SOURCE_DIR}/src/apu/nsfplay)
 set_source_files_properties(
     ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/legacy/emu2413.c
+    PROPERTIES LANGUAGE C)
+set_source_files_properties(
+    ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/legacy/emu2149.c
     PROPERTIES LANGUAGE C)
 
 # Copy ROM fixtures next to the test executable so relative paths resolve.

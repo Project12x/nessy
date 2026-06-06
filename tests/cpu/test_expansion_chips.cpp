@@ -4,6 +4,7 @@
 #include "xgm/devices/Sound/nes_fds.h"
 #include "xgm/devices/Sound/nes_n106.h"
 #include "xgm/devices/Sound/nes_vrc7.h"
+#include "xgm/devices/Sound/nes_fme7.h"
 
 TEST_CASE("MMC5 renders non-silent output", "[chips][mmc5]") {
     xgm::NES_MMC5 chip;
@@ -80,6 +81,20 @@ TEST_CASE("VRC7 renders non-silent output", "[chips][vrc7]") {
     // Clear key-on first (FamiTracker pattern), then set
     chip.Write(0x9010, 0x20); chip.Write(0x9030, 0x00);  // reg $20: key-off
     chip.Write(0x9010, 0x20); chip.Write(0x9030, 0x19);  // reg $20: key-on, block 4
+    auto r = smokeRender(chip);
+    REQUIRE(r.bounded);
+    REQUIRE(r.nonSilent);
+}
+
+TEST_CASE("FME7 (Sunsoft 5B) renders non-silent output", "[chips][fme7]") {
+    xgm::NES_FME7 chip;
+    chip.SetClock(1789772.7); chip.SetRate(48000.0); chip.Reset();
+    chip.SetMask(0);
+    // PSG: address latch via $C000, data via $E000
+    chip.Write(0xC000, 0x00); chip.Write(0xE000, 0x7F);  // ch A tone period low
+    chip.Write(0xC000, 0x01); chip.Write(0xE000, 0x00);  // ch A tone period high
+    chip.Write(0xC000, 0x07); chip.Write(0xE000, 0x3E);  // mixer: ch A tone enabled
+    chip.Write(0xC000, 0x08); chip.Write(0xE000, 0x0F);  // ch A amplitude 15
     auto r = smokeRender(chip);
     REQUIRE(r.bounded);
     REQUIRE(r.nonSilent);

@@ -35,6 +35,11 @@ the NES "Front-Loader" `NessyLookAndFeel`/`NessyScope` and `background.png`) is
 - **VRC7 source:** local `dn-famitracker-source/` (NSFPlay core).
 - **emu2413 source:** local `dn-famitracker-source/Source/APU/digital-sound-antiques/`. Author: Mitsutaka Okazaki. **License: MIT** (see `legacy/LICENSE-emu2413`). Reuse mode: direct-copy. Compiled as C.
 
+### Sunsoft 5B (nes_fme7) + emu2149 (PSG core)
+- **Used by:** Phase A.2, `src/apu/nsfplay/xgm/devices/Sound/nes_fme7.{cpp,h}` + `legacy/emu2149.*`
+- **Source:** bbbradsmith/nsfplay @ 6af5406e3325b5507bea1ae1a57c77d5efe5c7f3 (`xgm/devices/Sound/nes_fme7.*`, `legacy/emu2149.*`).
+- **emu2149 author:** Mitsutaka Okazaki. **License: MIT.** NSFPlay chip: "reuse without restriction." Reuse mode: direct-copy. emu2149 compiled as C.
+
 ## Compatibility summary
 
 NSFPlay (GPL-3.0) makes the combined work GPL-3.0. The remaining components flow
