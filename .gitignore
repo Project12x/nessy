@@ -23,3 +23,6 @@ JuceLibraryCode/
 
 # Reference source (not part of our build)
 dn-famitracker-source/
+
+# Brainstorm visual-companion scratch (superpowers)
+.superpowers/
