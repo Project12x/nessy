@@ -45,6 +45,15 @@ the NES "Front-Loader" `NessyLookAndFeel`/`NessyScope` and `background.png`) is
 - **Source:** bbbradsmith/nsfplay @ 6af5406e3325b5507bea1ae1a57c77d5efe5c7f3.
 - **License:** NSFPlay — "reuse this code without restriction" (permissive). Reuse mode: direct-copy. `log_cpu.cpp` is a first-party no-op stub (CPU logging disabled).
 
+### NSFPlay NSF/NSFe parser (nsf.h, nsf.cpp, soundData.h)
+- **Used by:** Phase B.1 Task 2 — NSF parser, `src/apu/nsfplay/xgm/player/nsf/nsf.{h,cpp}` + `xgm/player/soundData.h`
+- **Source:** bbbradsmith/nsfplay @ 6af5406e3325b5507bea1ae1a57c77d5efe5c7f3, paths `xgm/player/nsf/nsf.h`, `xgm/player/nsf/nsf.cpp`, `xgm/player/soundData.h`.
+- **License:** NSFPlay — "reuse this code without restriction" (permissive). Reuse mode: direct-copy with minimal guards.
+- **Modifications:** `#ifdef NSF_ENABLE_FILEREADER` guards in `nsf.h`/`nsf.cpp` to remove the file-reader/playlist path (not needed; tests call `Load(buf,size)` directly). Non-MFC `TRACE` stub added for compatibility with non-MFC MSVC builds.
+
+### Synthetic NSF fixture (tests/cpu/SyntheticNsf.h)
+- **First-party** — authored for nessy_tests. No copyright. Licensed GPL-3.0-or-later with the rest of the Nessy test suite. Not distributed in the plugin binary.
+
 ## Compatibility summary
 
 NSFPlay (GPL-3.0) makes the combined work GPL-3.0. The remaining components flow

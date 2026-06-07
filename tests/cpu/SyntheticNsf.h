@@ -1,0 +1,86 @@
+// SyntheticNsf.h — first-party test fixture (no copyright; part of nessy_tests)
+//
+// A minimal, self-contained 155-byte NSF image used to exercise the NSF parser
+// and (in later phases) the NsfEngine integration path.
+//
+// Layout:
+//   Offset  Size  Description
+//   ------  ----  -----------
+//   0x00     5    Magic: "NESM\x1A"
+//   0x05     1    Version: 1
+//   0x06     1    Songs: 1
+//   0x07     1    Start song: 1
+//   0x08     2    Load address:  $8000 (LE)
+//   0x0A     2    Init address:  $8000 (LE)
+//   0x0C     2    Play address:  $801A (LE)
+//   0x0E    96    Title / Artist / Copyright (zeroes)
+//   0x6E     2    NTSC speed: 16639 us/frame (0xFF 0x40 LE) => ~60.09 Hz
+//   0x70     8    Bankswitch init bytes (all 0x00 = no bankswitching)
+//   0x78     8    PAL speed / flags / soundchip(0=none) / NSF2 / proglen (zeroes)
+//   0x80    27    6502 program (loads to $8000)
+//
+// 6502 program at $8000 (INIT entry point):
+//   A9 0F 8D 15 40  LDA #$0F / STA $4015  -- enable Pulse 1 (must be first)
+//   A9 BF 8D 00 40  LDA #$BF / STA $4000  -- duty 50%, length-halt, const vol 15
+//   A9 00 8D 01 40  LDA #$00 / STA $4001  -- sweep off
+//   A9 D5 8D 02 40  LDA #$D5 / STA $4002  -- timer low (A-natural ~440 Hz at NTSC)
+//   A9 00 8D 03 40  LDA #$00 / STA $4003  -- timer high 0 + length load
+//   60              RTS                   -- INIT done ($8019)
+//   60              RTS                   -- PLAY entry ($801A)
+//
+// Total file size: 128 (header) + 27 (program) = 155 bytes.
+
+#pragma once
+
+static constexpr unsigned char kSyntheticNsf[] = {
+    // -- NSF header (128 bytes, offsets 0x00..0x7F) --
+    // 0x00: Magic "NESM\x1A"
+    0x4E, 0x45, 0x53, 0x4D, 0x1A,
+    // 0x05: version=1, songs=1, start=1
+    0x01, 0x01, 0x01,
+    // 0x08: load address $8000 (LE)
+    0x00, 0x80,
+    // 0x0A: init address $8000 (LE)
+    0x00, 0x80,
+    // 0x0C: play address $801A (LE)
+    0x1A, 0x80,
+    // 0x0E..0x6D: title (32), artist (32), copyright (32) — all zero
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x0E
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x16
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x1E
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x26
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x2E
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x36
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x3E
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x46
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x4E
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x56
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x5E
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // 0x66
+    // 0x6E: NTSC speed 16639 us/frame (0xFF40 LE)
+    0xFF, 0x40,
+    // 0x70..0x77: bankswitch init (none — all zero)
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    // 0x78: PAL speed low, 0x79: PAL speed high (0 = default)
+    0x00, 0x00,
+    // 0x7A: PAL/NTSC bits (0=NTSC)
+    0x00,
+    // 0x7B: soundchip (0 = none / standard APU only)
+    0x00,
+    // 0x7C: NSF2 bits (0 = NSF1)
+    0x00,
+    // 0x7D..0x7F: program length low/mid/high (0 = use end-of-file)
+    0x00, 0x00, 0x00,
+
+    // -- 6502 program (27 bytes, file offset 0x80, maps to NES address $8000) --
+    // INIT ($8000): enable Pulse 1, set duty/vol/sweep/timer, then RTS
+    0xA9, 0x0F, 0x8D, 0x15, 0x40,  // LDA #$0F / STA $4015  enable pulse 1
+    0xA9, 0xBF, 0x8D, 0x00, 0x40,  // LDA #$BF / STA $4000  50% duty, const vol 15
+    0xA9, 0x00, 0x8D, 0x01, 0x40,  // LDA #$00 / STA $4001  sweep off
+    0xA9, 0xD5, 0x8D, 0x02, 0x40,  // LDA #$D5 / STA $4002  timer low
+    0xA9, 0x00, 0x8D, 0x03, 0x40,  // LDA #$00 / STA $4003  timer high + length load
+    0x60,                           // RTS  (INIT done, at $8019)
+    0x60,                           // RTS  (PLAY entry, at $801A)
+};
+
+static_assert(sizeof(kSyntheticNsf) == 155, "kSyntheticNsf must be exactly 155 bytes");
