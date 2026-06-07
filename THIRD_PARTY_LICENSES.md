@@ -51,6 +51,17 @@ the NES "Front-Loader" `NessyLookAndFeel`/`NessyScope` and `background.png`) is
 - **License:** NSFPlay — "reuse this code without restriction" (permissive). Reuse mode: direct-copy with minimal guards.
 - **Modifications:** `#ifdef NSF_ENABLE_FILEREADER` guards in `nsf.h`/`nsf.cpp` to remove the file-reader/playlist path (not needed; tests call `Load(buf,size)` directly). Non-MFC `TRACE` stub added for compatibility with non-MFC MSVC builds.
 
+### NSFPlay Audio mixers (mixer.h, amplifier.h)
+- **Used by:** Phase B.1 Task 3 — `NsfEngine` bus wiring, `src/apu/nsfplay/xgm/devices/Audio/mixer.h` + `amplifier.h`
+- **Source:** bbbradsmith/nsfplay (master, 2025-02-04), paths `xgm/devices/Audio/mixer.h` + `xgm/devices/Audio/amplifier.h`.
+- **SHA of content at time of vendor:** mixer.h `5bb26ba134039f7cb0541e848ea4e212052c1e48`, amplifier.h `7b461c7ab21f149c31ce2ef0c609a0212ce618e1`.
+- **License:** NSFPlay — "reuse this code without restriction" (permissive). Reuse mode: direct-copy (header-only; no .cpp). Both headers depend only on `device.h` / standard library.
+- **Modifications (amplifier.h):** added `#include "../device.h"` so `IRenderable` and `UINT32` are visible when the header is included standalone (upstream includes device.h only indirectly via the enclosing translation unit).
+
+### NsfEngine (src/nsf/NsfEngine.h, src/nsf/NsfEngine.cpp)
+- **First-party** — authored for Nessy, Phase B.1 Task 3. Licensed GPL-3.0-or-later.
+- **Upstream reference:** bus topology adapted from `NSFPlayer::Reload()` in bbbradsmith/nsfplay `xgm/player/nsf/nsfplay.cpp` (master, 2025-02-04). Reuse mode: pattern-only (same device-attach order; no code copied verbatim). No vcm::Config, no loop detector, no Fader/Filter/RateConverter.
+
 ### Synthetic NSF fixture (tests/cpu/SyntheticNsf.h)
 - **First-party** — authored for nessy_tests. No copyright. Licensed GPL-3.0-or-later with the rest of the Nessy test suite. Not distributed in the plugin binary.
 
