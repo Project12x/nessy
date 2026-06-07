@@ -170,17 +170,94 @@ void NsfEngine::wireBus()
 }
 
 // ---------------------------------------------------------------------------
-// init() and renderSamples() — stubs, implemented in Task 4
+// init() and renderSamples() — Phase B.1 Task 4
 // ---------------------------------------------------------------------------
 
-void NsfEngine::init(int /*song*/)
+// Player stub program placed at PLAYER_RESERVED ($4100):
+//   $4100: 20 xx xx  JSR <target>  (bytes 1-2 are patched by run_from/WriteReserved)
+//   $4103: 4C 03 41  JMP $4103     (breakpoint — self-loop after JSR returns)
+//   $4106+: RTI stubs for NMI/IRQ used by NSF2; harmless for NSF1
+//
+// Upstream reference: bbbradsmith/nsfplay xgm/player/nsf/nsfplay.cpp
+//   PLAYER_PROGRAM bytes, inspected at commit 6af5406 (master, 2025-02-04).
+// Reuse mode: pattern-only.
+static constexpr xgm::UINT8 kPlayerProgram[] = {
+    0x20, 0x00, 0x00,  // JSR $0000 — target patched at runtime by run_from()
+    0x4C, 0x03, 0x41,  // JMP $4103 — self-loop / breakpoint
+    0x40,              // RTI — NMI handler stub  (PLAYER_RESERVED+0x06)
+    0x40,              // RTI — IRQ handler stub  (PLAYER_RESERVED+0x07)
+};
+
+void NsfEngine::init(int song)
 {
-    // TODO (Task 4): call stack_.Reset(), cpu_.Reset(), cpu_.Start(...)
+    // Reset all attached devices on the bus (including APU, DMC, expansion chips).
+    // stack_.Reset() broadcasts to every IDevice attached to the Layer/Bus chain.
+    stack_.Reset();
+    cpu_.Reset();
+
+    // Install player stub into the reserved $4100 region.
+    // Must be done after cpu_.Reset() because Reset() clears the context but
+    // does not touch the NES_MEM image; the stub remains valid across Reset.
+    mem_.SetReserved(kPlayerProgram, static_cast<xgm::UINT32>(sizeof(kPlayerProgram)));
+
+    // Reclock chips — stack_.Reset() may have cleared internal state.
+    apu_->SetClock(basecycles_);
+    dmc_->SetClock(basecycles_);
+    if (mmc5_) mmc5_->SetClock(basecycles_);
+    if (vrc6_) vrc6_->SetClock(basecycles_);
+    if (vrc7_) vrc7_->SetClock(basecycles_);
+    if (fme7_) fme7_->SetClock(basecycles_);
+    if (n106_) n106_->SetClock(basecycles_);
+    if (fds_)  fds_->SetClock(basecycles_);
+
+    clock_rest_ = 0.0;
+
+    // NTSC play rate: speed_ntsc is microseconds per frame; 0 treated as 16639.
+    double playRateHz = 1000000.0 / (nsf_.speed_ntsc ? nsf_.speed_ntsc : 16639);
+
+    // Start drains INIT to completion and leaves the CPU resting in the
+    // $4103 self-loop (breaked). Song is 0-based; region 0 = NTSC.
+    cpu_.Start(nsf_.init_address, nsf_.play_address, playRateHz,
+               song, /*region NTSC*/ 0,
+               nsf_.nsf2_bits, /*enable_irq*/ false, &nsf2_irq_);
 }
 
-void NsfEngine::renderSamples(int16_t* /*out*/, int /*count*/, double /*outputRate*/)
+void NsfEngine::renderSamples(int16_t* out, int count, double outputRate)
 {
-    // TODO (Task 4): tick CPU, call mixer_.Render(), resample to outputRate
+    // SetRate on every active chip once per render call.
+    apu_->SetRate(outputRate);
+    dmc_->SetRate(outputRate);
+    if (mmc5_) mmc5_->SetRate(outputRate);
+    if (vrc6_) vrc6_->SetRate(outputRate);
+    if (vrc7_) vrc7_->SetRate(outputRate);
+    if (fme7_) fme7_->SetRate(outputRate);
+    if (n106_) n106_->SetRate(outputRate);
+    if (fds_)  fds_->SetRate(outputRate);
+
+    for (int i = 0; i < count; ++i)
+    {
+        // Accumulate fractional CPU clocks: ~40.6 cycles per sample at 44.1 kHz.
+        clock_rest_ += basecycles_ / outputRate;
+        int clk = static_cast<int>(clock_rest_);
+        clock_rest_ -= clk;
+
+        // Run the 6502 for clk CPU clocks; PLAY fires internally each NTSC frame.
+        cpu_.Exec(clk);
+
+        // Tick all sound chips via the mixer's broadcast.
+        // Mixer::Tick iterates all attached IRenderable amplifiers and calls Tick.
+        mixer_.Tick(static_cast<xgm::UINT32>(clk));
+
+        // Render: mixer sums all amplifier outputs into b[0]/b[1] (L/R).
+        xgm::INT32 b[2] = {0, 0};
+        mixer_.Render(b);
+
+        // Clamp and write mono (L channel); stereo output is a future concern.
+        long v = b[0];
+        if (v > 32767)  v = 32767;
+        else if (v < -32768) v = -32768;
+        out[i] = static_cast<int16_t>(v);
+    }
 }
 
 } // namespace nessy
