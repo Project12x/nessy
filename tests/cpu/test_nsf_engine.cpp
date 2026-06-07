@@ -22,3 +22,17 @@ TEST_CASE("NsfEngine runs INIT and rests in the player loop", "[nsf][init]") {
     // PLAYER_RESERVED = $4100; breakpoint = $4103 (JMP $4103 — the self-loop).
     REQUIRE(eng.cpuPC() == 0x4103);
 }
+
+#include <vector>
+#include <algorithm>
+
+TEST_CASE("NsfEngine plays a synthetic NSF (non-silent)", "[nsf][render]") {
+    nessy::NsfEngine eng;
+    REQUIRE(eng.load(kSyntheticNsf, (xgm::UINT32)sizeof(kSyntheticNsf)));
+    eng.init(0);
+    std::vector<int16_t> buf(44100);                 // ~1 second @ 44.1 kHz
+    eng.renderSamples(buf.data(), (int)buf.size(), 44100.0);
+    bool nonSilent = std::any_of(buf.begin(), buf.end(),
+                                 [](int16_t s){ return s != 0; });
+    REQUIRE(nonSilent);
+}
