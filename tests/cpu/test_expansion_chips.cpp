@@ -5,6 +5,9 @@
 #include "xgm/devices/Sound/nes_n106.h"
 #include "xgm/devices/Sound/nes_vrc7.h"
 #include "xgm/devices/Sound/nes_fme7.h"
+#include "xgm/devices/Sound/nes_apu.h"
+#include "xgm/devices/Sound/nes_dmc.h"
+#include "xgm/devices/CPU/nes_cpu.h"
 
 TEST_CASE("MMC5 renders non-silent output", "[chips][mmc5]") {
     xgm::NES_MMC5 chip;
@@ -98,4 +101,36 @@ TEST_CASE("FME7 (Sunsoft 5B) renders non-silent output", "[chips][fme7]") {
     auto r = smokeRender(chip);
     REQUIRE(r.bounded);
     REQUIRE(r.nonSilent);
+}
+
+// Regression guard for the B1.1 startup crash: NES_DMC dereferences its CPU
+// pointer UNGUARDED (cpu->UpdateIRQ / cpu->StealCycles, including inside Reset()).
+// With the stub CPU those were inline no-ops, so a null pointer was harmless; with
+// the real CPU they touch `this`, so a null CPU is a crash. The DMC therefore
+// REQUIRES a wired CPU — this test pins that contract (and the DMC was previously
+// untested, which is why the crash slipped past a green suite).
+TEST_CASE("NES_DMC resets + frame-ticks without crashing when a CPU is wired", "[chips][dmc]") {
+    // Unit-level repro of the B1.1 startup crash: Reset() and the frame sequencer
+    // call cpu->UpdateIRQ() UNGUARDED, so a null CPU null-derefs. Wire a CPU (and
+    // the APU it shares the frame sequencer with), exactly as the synth must.
+    xgm::NES_CPU cpu;
+    xgm::NES_APU apu;
+    xgm::NES_DMC dmc;
+    dmc.SetCPU(&cpu);                         // REQUIRED — removing this null-derefs in Reset()
+    dmc.SetAPU(&apu);                         // DMC shares the frame sequencer with the APU
+    dmc.SetClock(1789772.7); dmc.SetRate(48000.0); dmc.SetMask(0);
+    dmc.Reset();                              // calls cpu->UpdateIRQ — must not crash
+    dmc.Write(0x4008, 0xFF);                  // triangle linear counter control
+    dmc.Write(0x400A, 0x40); dmc.Write(0x400B, 0x08); // triangle period + length reload
+    dmc.Write(0x4015, 0x04);                  // enable triangle
+    bool bounded = true;
+    for (int i = 0; i < 2000; ++i) {
+        dmc.TickFrameSequence(37);            // frame seq calls cpu->UpdateIRQ (the crash path)
+        dmc.Tick(37);
+        xgm::INT32 b[2] = {0, 0};
+        dmc.Render(b);
+        if (std::llabs((long long)b[0]) > (1LL << 24) ||
+            std::llabs((long long)b[1]) > (1LL << 24)) bounded = false;
+    }
+    REQUIRE(bounded);                         // reaching here at all means no null-deref crash
 }

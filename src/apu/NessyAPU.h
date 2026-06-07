@@ -9,6 +9,7 @@
 
 // Forward declarations for NSFPlay types
 namespace xgm {
+class NES_CPU;
 class NES_APU;
 class NES_DMC;
 class NES_VRC6;
@@ -116,6 +117,11 @@ private:
   void clockAPU(int cpuClocks);
 
   // NSFPlay cores
+  // Idle CPU required by NES_DMC: the DMC calls cpu->UpdateIRQ()/StealCycles()
+  // UNGUARDED (incl. inside Reset()), so it must have a non-null CPU even though
+  // the synth never runs it. Declared first so it outlives m_apu2 (the DMC holds
+  // a raw pointer to it). Removing this reintroduces a null-deref crash at startup.
+  std::unique_ptr<xgm::NES_CPU> m_cpu;
   std::unique_ptr<xgm::NES_APU> m_apu1;  // Pulse channels
   std::unique_ptr<xgm::NES_DMC> m_apu2;  // Triangle, Noise, DMC
   std::unique_ptr<xgm::NES_VRC6> m_vrc6; // VRC6 expansion

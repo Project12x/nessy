@@ -47,8 +47,13 @@ static constexpr int MIDI_A4 = 69;
 static constexpr double FREQ_A4 = 440.0;
 
 NessyAPU::NessyAPU() {
+  m_cpu         = std::make_unique<xgm::NES_CPU>();
   m_apu1        = std::make_unique<xgm::NES_APU>();
   m_apu2        = std::make_unique<xgm::NES_DMC>();
+  // The DMC dereferences its CPU pointer unguarded (UpdateIRQ/StealCycles, incl.
+  // in Reset()). Give it an idle CPU — never Start()/Exec()'d, so this is
+  // behaviour-neutral for the synth; it only prevents a null-deref crash.
+  m_apu2->SetCPU(m_cpu.get());
   m_vrc6        = std::make_unique<VRC6Exposed>();
   m_blipBuffer  = std::make_unique<Blip_Buffer>();
   m_memory      = std::make_unique<NessyMemory>();
