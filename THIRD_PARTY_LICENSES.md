@@ -40,6 +40,11 @@ the NES "Front-Loader" `NessyLookAndFeel`/`NessyScope` and `background.png`) is
 - **Source:** bbbradsmith/nsfplay @ 6af5406e3325b5507bea1ae1a57c77d5efe5c7f3 (`xgm/devices/Sound/nes_fme7.*`, `legacy/emu2149.*`).
 - **emu2149 author:** Mitsutaka Okazaki. **License: MIT.** NSFPlay chip: "reuse without restriction." Reuse mode: direct-copy. emu2149 compiled as C.
 
+### NSFPlay CPU + memory cluster (nes_cpu, nes_mem, nes_bank, nsf2_vectors, nsf2_irq)
+- **Used by:** Phase B.1 NSF engine, `src/apu/nsfplay/xgm/devices/{CPU,Memory,Misc}/`
+- **Source:** bbbradsmith/nsfplay @ 6af5406e3325b5507bea1ae1a57c77d5efe5c7f3.
+- **License:** NSFPlay — "reuse this code without restriction" (permissive). Reuse mode: direct-copy. `log_cpu.cpp` is a first-party no-op stub (CPU logging disabled).
+
 ## Compatibility summary
 
 NSFPlay (GPL-3.0) makes the combined work GPL-3.0. The remaining components flow

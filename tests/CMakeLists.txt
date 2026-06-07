@@ -23,6 +23,12 @@ target_sources(nessy_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/legacy/emu2413.c
     ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/nes_fme7.cpp
     ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/legacy/emu2149.c
+    ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/CPU/nes_cpu.cpp
+    ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Memory/nes_mem.cpp
+    ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Memory/nes_bank.cpp
+    ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Memory/nsf2_vectors.cpp
+    ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Misc/nsf2_irq.cpp
+    ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Misc/log_cpu.cpp
 )
 target_include_directories(nessy_tests PRIVATE ${CMAKE_SOURCE_DIR}/src/apu/nsfplay)
 set_source_files_properties(

@@ -65,6 +65,12 @@ target_sources(Nessy
         src/apu/nsfplay/xgm/devices/Sound/nes_apu.cpp
         src/apu/nsfplay/xgm/devices/Sound/nes_dmc.cpp
         src/apu/nsfplay/xgm/devices/Sound/nes_vrc6.cpp
+        src/apu/nsfplay/xgm/devices/CPU/nes_cpu.cpp
+        src/apu/nsfplay/xgm/devices/Memory/nes_mem.cpp
+        src/apu/nsfplay/xgm/devices/Memory/nes_bank.cpp
+        src/apu/nsfplay/xgm/devices/Memory/nsf2_vectors.cpp
+        src/apu/nsfplay/xgm/devices/Misc/nsf2_irq.cpp
+        src/apu/nsfplay/xgm/devices/Misc/log_cpu.cpp
 )
 
 # Include directories

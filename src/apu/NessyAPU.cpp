@@ -10,6 +10,25 @@
 #include "nsfplay/xgm/devices/Sound/nes_dmc.h"
 #include "nsfplay/xgm/devices/Sound/nes_vrc6.h"
 
+// km6502 (via nes_cpu.h) defines short calling-convention macros that leak
+// into JUCE headers and cause C2059 syntax errors.  Undefine them here,
+// after all NSFPlay headers and before any JUCE headers.
+#ifdef External
+#  undef External
+#endif
+#ifdef Callback
+#  undef Callback
+#endif
+#ifdef Inline
+#  undef Inline
+#endif
+#ifdef CCall
+#  undef CCall
+#endif
+#ifdef FastCall
+#  undef FastCall
+#endif
+
 #include <algorithm>
 #include <cmath>
 #include <juce_core/juce_core.h>
