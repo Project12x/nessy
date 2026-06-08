@@ -252,16 +252,25 @@ void NessyAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 
   if (m_playbackMode.load(std::memory_order_relaxed) == 1 && m_activeNsf) {
     // === NSF PLAYBACK PATH ===
-    // Grow scratch if the host raised block size between prepareToPlay calls.
-    // Steady-state: no realloc (sized in prepareToPlay).
-    if ((int)m_nsfScratch.size() < numSamples)
-      m_nsfScratch.assign((size_t)numSamples, 0);
+    if (!m_nsfPlaying.load(std::memory_order_relaxed)) {
+      // Paused: output silence; do NOT call renderSamples so the engine freezes.
+      // RT-safe: no allocation, no lock.
+      for (int i = 0; i < numSamples; ++i) {
+        leftChannel[i]  = 0.0f;
+        rightChannel[i] = 0.0f;
+      }
+    } else {
+      // Grow scratch if the host raised block size between prepareToPlay calls.
+      // Steady-state: no realloc (sized in prepareToPlay).
+      if ((int)m_nsfScratch.size() < numSamples)
+        m_nsfScratch.assign((size_t)numSamples, 0);
 
-    m_activeNsf->renderSamples(m_nsfScratch.data(), numSamples, currentSampleRate);
+      m_activeNsf->renderSamples(m_nsfScratch.data(), numSamples, currentSampleRate);
 
-    // Mono int16 -> stereo float (see NsfMix.h for unit-tested implementation).
-    auto* R = buffer.getNumChannels() > 1 ? rightChannel : leftChannel;
-    nsfMonoToStereo(m_nsfScratch.data(), leftChannel, R, numSamples);
+      // Mono int16 -> stereo float (see NsfMix.h for unit-tested implementation).
+      auto* R = buffer.getNumChannels() > 1 ? rightChannel : leftChannel;
+      nsfMonoToStereo(m_nsfScratch.data(), leftChannel, R, numSamples);
+    }
   } else {
     // === SYNTH PATH — VERBATIM (unchanged) ===
 
@@ -447,7 +456,10 @@ void NessyAudioProcessor::loadNsf(const uint8_t* data, size_t size, int song) {
   eng->init(song);
 
   // Step 3: cache metadata before publishing (safe to read from message thread).
-  m_nsfTitle = juce::String(eng->title());
+  m_nsfTitle     = juce::String(eng->title());
+  m_nsfArtist    = juce::String(eng->artist());
+  m_nsfCopyright = juce::String(eng->copyright());
+  m_nsfChips     = juce::String(eng->chips());
   m_nsfSongCount = eng->songCount();
 
   // Step 4: cache bytes for selectNsfSong().
@@ -459,7 +471,10 @@ void NessyAudioProcessor::loadNsf(const uint8_t* data, size_t size, int song) {
   if (auto* stale = m_pendingNsf.exchange(eng, std::memory_order_release))
     delete stale;
 
-  // Step 6: switch mode.
+  // Step 6: reset transport so a freshly loaded NSF begins playing immediately.
+  m_nsfPlaying.store(true, std::memory_order_release);
+
+  // Step 7: switch mode.
   m_playbackMode.store(1, std::memory_order_release);
 }
 

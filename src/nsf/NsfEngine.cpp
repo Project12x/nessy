@@ -374,6 +374,36 @@ std::string NsfEngine::title() const
     return std::string(impl_->nsf.title_nsf);
 }
 
+std::string NsfEngine::artist() const
+{
+    // nsf.artist points to artist_nsf (or the NSFe artist string if present).
+    if (impl_->nsf.artist && impl_->nsf.artist[0] != '\0')
+        return std::string(impl_->nsf.artist);
+    return std::string(impl_->nsf.artist_nsf);
+}
+
+std::string NsfEngine::copyright() const
+{
+    // nsf.copyright points to copyright_nsf (or the NSFe copyright string if present).
+    if (impl_->nsf.copyright && impl_->nsf.copyright[0] != '\0')
+        return std::string(impl_->nsf.copyright);
+    return std::string(impl_->nsf.copyright_nsf);
+}
+
+std::string NsfEngine::chips() const
+{
+    // Always starts with the base 2A03. Expansion chips are appended
+    // in the order they appear in the NSF soundchip byte (bits 0-5).
+    std::string result = "2A03";
+    if (impl_->nsf.use_vrc6) result += " + VRC6";
+    if (impl_->nsf.use_vrc7) result += " + VRC7";
+    if (impl_->nsf.use_fds)  result += " + FDS";
+    if (impl_->nsf.use_mmc5) result += " + MMC5";
+    if (impl_->nsf.use_n106) result += " + N163";
+    if (impl_->nsf.use_fme7) result += " + 5B";
+    return result;
+}
+
 int NsfEngine::songCount() const
 {
     return static_cast<int>(impl_->nsf.songs);

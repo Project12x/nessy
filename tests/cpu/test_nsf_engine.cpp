@@ -26,6 +26,16 @@ TEST_CASE("NsfEngine runs INIT and rests in the player loop", "[nsf][init]") {
 #include <vector>
 #include <algorithm>
 
+TEST_CASE("NsfEngine metadata accessors (synthetic NSF)", "[nsf][metadata]") {
+    nessy::NsfEngine eng;
+    REQUIRE(eng.load(kSyntheticNsf, sizeof(kSyntheticNsf)));
+    // Synthetic NSF has all-zero title/artist/copyright fields.
+    REQUIRE(eng.artist()    == "");
+    REQUIRE(eng.copyright() == "");
+    // soundchip == 0 => no expansions => only base 2A03 reported.
+    REQUIRE(eng.chips() == "2A03");
+}
+
 TEST_CASE("NsfEngine plays a synthetic NSF (non-silent)", "[nsf][render]") {
     nessy::NsfEngine eng;
     REQUIRE(eng.load(kSyntheticNsf, sizeof(kSyntheticNsf)));

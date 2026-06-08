@@ -38,6 +38,11 @@ public:
 
     // Metadata (read after a successful load).
     std::string title() const;
+    std::string artist() const;
+    std::string copyright() const;
+    // Chip list: always "2A03", plus " + VRC6" / " + VRC7" / " + FDS" /
+    //            " + MMC5" / " + N163" / " + 5B" for each active expansion.
+    std::string chips() const;
     int songCount() const;
 
 private:

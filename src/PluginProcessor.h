@@ -67,7 +67,16 @@ public:
   void setPlaybackMode(bool nsf);
   bool isNsfMode() const { return m_playbackMode.load(std::memory_order_relaxed) == 1; }
   juce::String getNsfTitle() const;
+  juce::String getNsfArtist()    const { return m_nsfArtist; }
+  juce::String getNsfCopyright() const { return m_nsfCopyright; }
+  juce::String getNsfChips()     const { return m_nsfChips; }
   int getNsfSongCount() const;
+  int getNsfSong() const { return m_nsfSong; }
+
+  // NSF transport: pause/resume without restarting the engine.
+  void setNsfPlaying(bool p) { m_nsfPlaying.store(p, std::memory_order_release); }
+  bool isNsfPlaying() const  { return m_nsfPlaying.load(std::memory_order_relaxed); }
+
   // Drain the retire slot (call from message thread, e.g. editor timer, to free old engines).
   void retireOldEngine();
 
@@ -128,7 +137,14 @@ private:
   // Cached metadata set in loadNsf() from the new engine before publishing,
   // safe to read from the message thread without touching m_activeNsf.
   juce::String m_nsfTitle;
+  juce::String m_nsfArtist;
+  juce::String m_nsfCopyright;
+  juce::String m_nsfChips;
   int m_nsfSongCount { 0 };
+
+  // NSF transport: true = render audio; false = output silence (freeze/pause).
+  // Written by message thread; read by audio thread (relaxed load, release store).
+  std::atomic<bool> m_nsfPlaying { true };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NessyAudioProcessor)
 };
