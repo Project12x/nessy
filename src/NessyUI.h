@@ -11,6 +11,77 @@
 
 namespace nessy {
 
+// ---------------------------------------------------------------------------
+// Shared chrome paint helpers — used by PluginEditor and NsfPlayerWindow.
+// These replicate the NES "Front-Loader" plastic/PCB look.
+// ---------------------------------------------------------------------------
+
+inline void vgrad(juce::Graphics& g, juce::Rectangle<float> r,
+                  juce::Colour a, juce::Colour b, float radius) {
+  g.setGradientFill({a, r.getX(), r.getY(), b, r.getX(), r.getBottom(), false});
+  if (radius > 0) g.fillRoundedRectangle(r, radius); else g.fillRect(r);
+}
+
+inline void bevelOut(juce::Graphics& g, juce::Rectangle<float> r,
+                     juce::Colour a, juce::Colour b, float radius) {
+  g.setColour(juce::Colours::black.withAlpha(0.25f));
+  g.fillRoundedRectangle(r.translated(0, 1.5f), radius);
+  vgrad(g, r, a, b, radius);
+  g.setColour(juce::Colours::white.withAlpha(0.40f));
+  g.drawRoundedRectangle(r.reduced(0.5f), radius, 1.0f);
+  g.setColour(juce::Colours::black.withAlpha(0.16f));
+  g.fillRect(juce::Rectangle<float>(r.getX() + radius, r.getBottom() - 2.0f,
+                                    r.getWidth() - 2 * radius, 1.4f));
+}
+
+inline void bevelIn(juce::Graphics& g, juce::Rectangle<float> r,
+                    juce::Colour fill, float radius) {
+  g.setColour(fill);
+  g.fillRoundedRectangle(r, radius);
+  g.setGradientFill({juce::Colours::black.withAlpha(0.40f), r.getX(), r.getY(),
+                     juce::Colours::transparentBlack, r.getX(),
+                     r.getY() + r.getHeight() * 0.55f, false});
+  g.fillRoundedRectangle(r, radius);
+  g.setColour(juce::Colours::white.withAlpha(0.10f));
+  g.drawHorizontalLine((int)r.getBottom() - 1, r.getX() + radius,
+                       r.getRight() - radius);
+}
+
+inline void led(juce::Graphics& g, juce::Point<float> c, float rad,
+                juce::Colour col, bool on) {
+  if (on) {
+    g.setColour(col.withAlpha(0.28f));
+    g.fillEllipse(c.x - rad * 2.2f, c.y - rad * 2.2f, rad * 4.4f, rad * 4.4f);
+    g.setColour(col.withAlpha(0.45f));
+    g.fillEllipse(c.x - rad * 1.4f, c.y - rad * 1.4f, rad * 2.8f, rad * 2.8f);
+  }
+  juce::Colour base = on ? col : juce::Colour(0xff3a3a37);
+  g.setGradientFill({base.brighter(on ? 0.6f : 0.1f), c.x - rad * 0.3f,
+                     c.y - rad * 0.3f, base.darker(0.5f), c.x + rad, c.y + rad,
+                     true});
+  g.fillEllipse(c.x - rad, c.y - rad, rad * 2, rad * 2);
+  g.setColour(juce::Colours::white.withAlpha(on ? 0.6f : 0.25f));
+  g.fillEllipse(c.x - rad * 0.5f, c.y - rad * 0.6f, rad * 0.55f, rad * 0.55f);
+}
+
+// CRT glass overlay for a scope rect.
+inline void crtGlass(juce::Graphics& g, juce::Rectangle<float> r) {
+  auto cx = r.getCentreX(), cy = r.getCentreY();
+  juce::ColourGradient vig(juce::Colours::transparentBlack, cx, cy,
+                           juce::Colours::black.withAlpha(0.5f), r.getX(),
+                           r.getY(), true);
+  vig.addColour(0.55, juce::Colours::transparentBlack);
+  g.setGradientFill(vig);
+  g.fillRect(r);
+  g.setGradientFill({juce::Colours::white.withAlpha(0.16f), r.getX(), r.getY(),
+                     juce::Colours::transparentWhite, r.getCentreX(),
+                     r.getCentreY(), false});
+  g.fillRect(r);
+  g.setColour(juce::Colours::black.withAlpha(0.22f));
+  for (float y = r.getY(); y < r.getBottom(); y += 2.0f)
+    g.fillRect(r.getX(), y, r.getWidth(), 1.0f);
+}
+
 // Press Start 2P pixel font (embedded in NessyFonts BinaryData).
 inline juce::Font pixelFont(float h) {
   static auto tf = juce::Typeface::createSystemTypefaceFor(

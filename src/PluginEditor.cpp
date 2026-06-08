@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "NsfPlayerWindow.h"
 #include "BinaryData.h"
 
 // ===========================================================================
@@ -297,7 +298,10 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
   startTimerHz(60);
 }
 
-NessyAudioProcessorEditor::~NessyAudioProcessorEditor() {}
+NessyAudioProcessorEditor::~NessyAudioProcessorEditor() {
+  // Destroy the floating window before our members (lnf, processorRef) go away.
+  m_nsfWindow.reset();
+}
 
 void NessyAudioProcessorEditor::timerCallback() {
   // Drain any retired NSF engine off the audio thread (cheap, message-thread safe).
@@ -309,6 +313,10 @@ void NessyAudioProcessorEditor::timerCallback() {
         scopes[i]->process(buf, NessyAPU::VISUALIZER_BUFFER_SIZE);
   }
   repaint();
+
+  // Refresh the NSF player window if it's open (so metadata/song counter update).
+  if (m_nsfWindow && m_nsfWindow->isVisible())
+    m_nsfWindow->refresh();
 }
 
 // ---- Geometry -------------------------------------------------------------
@@ -541,6 +549,8 @@ void NessyAudioProcessorEditor::setTheme(int index) {
   currentTheme = NessyTheme::byIndex(themeIndex);
   processorRef.getAPVTS().state.setProperty("uiTheme", themeIndex, nullptr);
   applyThemeToControls();
+  if (m_nsfWindow)
+    m_nsfWindow->setTheme(currentTheme);
   repaint();
 }
 
@@ -919,23 +929,15 @@ void NessyAudioProcessorEditor::mouseDown(const juce::MouseEvent &e) {
       return;
     }
 
-  // Cartridge EJECT — open NSF file chooser
+  // Cartridge EJECT — open the NSF player floating window.
+  // File loading is handled by the window's own LOAD NSF button.
   if (m_ejectBounds.contains(pos)) {
-    m_nsfChooser = std::make_unique<juce::FileChooser>(
-        "Load an NSF", juce::File(), "*.nsf;*.nsfe");
-    auto chooserFlags = juce::FileBrowserComponent::openMode
-                      | juce::FileBrowserComponent::canSelectFiles;
-    m_nsfChooser->launchAsync(chooserFlags, [this](const juce::FileChooser &fc) {
-      auto file = fc.getResult();
-      if (file.existsAsFile()) {
-        juce::MemoryBlock mb;
-        if (file.loadFileAsData(mb)) {
-          m_uiSong = 0;
-          processorRef.loadNsf(static_cast<const uint8_t *>(mb.getData()),
-                               mb.getSize(), 0);
-        }
-      }
-    });
+    if (!m_nsfWindow) {
+      m_nsfWindow = std::make_unique<NsfPlayerWindow>(processorRef, currentTheme);
+    }
+    m_nsfWindow->setTheme(currentTheme);
+    m_nsfWindow->setVisible(true);
+    m_nsfWindow->toFront(true);
     return;
   }
 

@@ -9,6 +9,8 @@
 #include <memory>
 #include <vector>
 
+class NsfPlayerWindow; // forward declaration — defined in NsfPlayerWindow.h
+
 // ---------------------------------------------------------------------------
 // NessyTheme — one hardware skin (NES / Famicom / FDS).
 // Tokens mirror nessy.css :root + data-theme variables (see DESIGN.md).
@@ -103,8 +105,11 @@ private:
 
   // --- NSF load UI state ---
   juce::Rectangle<int> m_ejectBounds, m_nsfPrevBounds, m_nsfNextBounds, m_cartBodyBounds;
-  std::unique_ptr<juce::FileChooser> m_nsfChooser;
+  // m_nsfChooser removed: file loading is now owned by NsfPlayerWindow's LOAD button.
   int m_uiSong = 0;
+
+  // --- NSF player floating window ---
+  std::unique_ptr<NsfPlayerWindow> m_nsfWindow;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NessyAudioProcessorEditor)
 };

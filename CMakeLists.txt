@@ -51,6 +51,7 @@ target_sources(Nessy
     PRIVATE
         src/PluginProcessor.cpp
         src/PluginEditor.cpp
+        src/NsfPlayerWindow.cpp
         
         # NessyAPU wrapper
         src/apu/NessyAPU.cpp
