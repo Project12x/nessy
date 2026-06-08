@@ -101,5 +101,10 @@ private:
   juce::MidiKeyboardComponent keyboard;
   juce::Image backgroundImage;
 
+  // --- NSF load UI state ---
+  juce::Rectangle<int> m_ejectBounds, m_nsfPrevBounds, m_nsfNextBounds, m_cartBodyBounds;
+  std::unique_ptr<juce::FileChooser> m_nsfChooser;
+  int m_uiSong = 0;
+
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NessyAudioProcessorEditor)
 };

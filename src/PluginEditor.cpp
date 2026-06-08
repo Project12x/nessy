@@ -300,6 +300,9 @@ NessyAudioProcessorEditor::NessyAudioProcessorEditor(NessyAudioProcessor &p)
 NessyAudioProcessorEditor::~NessyAudioProcessorEditor() {}
 
 void NessyAudioProcessorEditor::timerCallback() {
+  // Drain any retired NSF engine off the audio thread (cheap, message-thread safe).
+  processorRef.retireOldEngine();
+
   if (auto *apu = processorRef.getAPU()) {
     for (int i = 0; i < kNumStrips; ++i)
       if (const float *buf = apu->getVisualizerBuffer(i))
@@ -441,7 +444,7 @@ void NessyAudioProcessorEditor::drawGamepad(juce::Graphics &g) {
   abBtn(R.aBtn, "A", "PORTA", porta);
 }
 
-// ---- Cartridge preset loader (decorative; wired when Phase 11 lands) ----
+// ---- Cartridge preset loader (NSF load wired in Phase B.2) ----
 void NessyAudioProcessorEditor::drawCartridge(juce::Graphics &g) {
   const auto &t = currentTheme;
   auto bar = cartridgeBounds().reduced(22, 3);
@@ -455,7 +458,8 @@ void NessyAudioProcessorEditor::drawCartridge(juce::Graphics &g) {
     g.setColour(t.railText); g.setFont(px(6.0f));
     g.drawText("CARTRIDGE", top, juce::Justification::centredLeft);
     g.setColour(t.nameText); g.setFont(px(5.0f));
-    g.drawText("PATCH 02/06", col, juce::Justification::centredLeft);
+    g.drawText(processorRef.isNsfMode() ? "NSF MODE" : "PATCH 02/06",
+               col, juce::Justification::centredLeft);
   }
 
   auto chip = [&](juce::Rectangle<int> r, const juce::String &txt) {
@@ -472,29 +476,59 @@ void NessyAudioProcessorEditor::drawCartridge(juce::Graphics &g) {
   };
 
   inner.removeFromLeft(6);
-  arrow(inner.removeFromLeft(20).withSizeKeepingCentre(18, 18), true);
+  auto prevRect = inner.removeFromLeft(20).withSizeKeepingCentre(18, 18);
+  m_nsfPrevBounds = prevRect;
+  arrow(prevRect, true);
   inner.removeFromLeft(6);
   chip(inner.removeFromRight(42), "SAVE");
   inner.removeFromRight(6);
-  chip(inner.removeFromRight(46), "EJECT");
+  auto ejectRect = inner.removeFromRight(46);
+  m_ejectBounds = ejectRect;
+  chip(ejectRect, "EJECT");
   inner.removeFromRight(6);
-  arrow(inner.removeFromRight(20).withSizeKeepingCentre(18, 18), false);
+  auto nextRect = inner.removeFromRight(20).withSizeKeepingCentre(18, 18);
+  m_nsfNextBounds = nextRect;
+  arrow(nextRect, false);
   inner.removeFromRight(8);
 
-  // slot mouth + seated cartridge ("MEGA LEAD" — pulse-1 red label)
+  // slot mouth + seated cartridge body
   bevelIn(g, inner.removeFromLeft(9).toFloat(), juce::Colour(0xff0b0b0b), 3.0f);
+  m_cartBodyBounds = inner;
   vgrad(g, inner.toFloat(), juce::Colour(0xff46463f), juce::Colour(0xff2e2e29), 4.0f);
   auto cart = inner.reduced(5, 3);
   auto ridge = cart.removeFromRight(13);
-  g.setColour(kColor[0]);
-  g.fillRoundedRectangle(cart.toFloat(), 3.0f);
-  g.setColour(juce::Colours::white.withAlpha(0.30f));
-  g.drawRoundedRectangle(cart.toFloat().reduced(0.5f), 3.0f, 1.0f);
-  auto faceTop = cart.removeFromTop(cart.getHeight() / 2);
-  g.setColour(juce::Colours::white.withAlpha(0.8f)); g.setFont(px(4.5f));
-  g.drawText("NESSY - PATCH", faceTop.reduced(6, 0), juce::Justification::centredLeft);
-  g.setColour(juce::Colours::white); g.setFont(px(7.5f));
-  g.drawText("MEGA LEAD", cart.reduced(6, 0), juce::Justification::centredLeft);
+
+  if (processorRef.isNsfMode()) {
+    // NSF mode: teal/green label with title + song counter
+    g.setColour(juce::Colour(0xff1a6644));
+    g.fillRoundedRectangle(cart.toFloat(), 3.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.30f));
+    g.drawRoundedRectangle(cart.toFloat().reduced(0.5f), 3.0f, 1.0f);
+
+    auto faceTop = cart.removeFromTop(cart.getHeight() / 2);
+    // Title — truncated to fit
+    juce::String title = processorRef.getNsfTitle();
+    if (title.length() > 18) title = title.substring(0, 17) + ".";
+    g.setColour(juce::Colours::white.withAlpha(0.9f)); g.setFont(px(4.5f));
+    g.drawText("NSF  " + title, faceTop.reduced(6, 0), juce::Justification::centredLeft);
+    // Song counter
+    int total = juce::jmax(1, processorRef.getNsfSongCount());
+    juce::String songLabel = "SONG " + juce::String(m_uiSong + 1) + "/" + juce::String(total);
+    g.setColour(juce::Colour(0xff66ffaa)); g.setFont(px(6.5f));
+    g.drawText(songLabel, cart.reduced(6, 0), juce::Justification::centredLeft);
+  } else {
+    // Synth mode: original decorative look
+    g.setColour(kColor[0]);
+    g.fillRoundedRectangle(cart.toFloat(), 3.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.30f));
+    g.drawRoundedRectangle(cart.toFloat().reduced(0.5f), 3.0f, 1.0f);
+    auto faceTop = cart.removeFromTop(cart.getHeight() / 2);
+    g.setColour(juce::Colours::white.withAlpha(0.8f)); g.setFont(px(4.5f));
+    g.drawText("NESSY - PATCH", faceTop.reduced(6, 0), juce::Justification::centredLeft);
+    g.setColour(juce::Colours::white); g.setFont(px(7.5f));
+    g.drawText("MEGA LEAD", cart.reduced(6, 0), juce::Justification::centredLeft);
+  }
+
   for (int x = ridge.getX() + 1; x < ridge.getRight(); x += 4) {
     g.setColour(juce::Colour(0xff54524a));
     g.fillRect(x, ridge.getY(), 2, ridge.getHeight());
@@ -884,6 +918,47 @@ void NessyAudioProcessorEditor::mouseDown(const juce::MouseEvent &e) {
       toggleBool(i == 0 ? "sweep1Enable" : "sweep2Enable");
       return;
     }
+
+  // Cartridge EJECT — open NSF file chooser
+  if (m_ejectBounds.contains(pos)) {
+    m_nsfChooser = std::make_unique<juce::FileChooser>(
+        "Load an NSF", juce::File(), "*.nsf;*.nsfe");
+    auto chooserFlags = juce::FileBrowserComponent::openMode
+                      | juce::FileBrowserComponent::canSelectFiles;
+    m_nsfChooser->launchAsync(chooserFlags, [this](const juce::FileChooser &fc) {
+      auto file = fc.getResult();
+      if (file.existsAsFile()) {
+        juce::MemoryBlock mb;
+        if (file.loadFileAsData(mb)) {
+          m_uiSong = 0;
+          processorRef.loadNsf(static_cast<const uint8_t *>(mb.getData()),
+                               mb.getSize(), 0);
+        }
+      }
+    });
+    return;
+  }
+
+  // Cartridge prev/next song arrows (only meaningful in NSF mode)
+  if (m_nsfPrevBounds.contains(pos)) {
+    m_uiSong = juce::jmax(0, m_uiSong - 1);
+    processorRef.selectNsfSong(m_uiSong);
+    repaint();
+    return;
+  }
+  if (m_nsfNextBounds.contains(pos)) {
+    m_uiSong = juce::jmin(processorRef.getNsfSongCount() - 1, m_uiSong + 1);
+    processorRef.selectNsfSong(m_uiSong);
+    repaint();
+    return;
+  }
+
+  // Cartridge body click in NSF mode — return to Synth
+  if (m_cartBodyBounds.contains(pos) && processorRef.isNsfMode()) {
+    processorRef.setPlaybackMode(false);
+    repaint();
+    return;
+  }
 
   auto segs = themeSegmentRects();
   for (int i = 0; i < 3; ++i)
