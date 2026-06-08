@@ -270,6 +270,18 @@ void NsfPlayerView::resized() {
 }
 
 // ---------------------------------------------------------------------------
+void NsfPlayerView::refresh() {
+  // Feed each scope from the live NSF engine buffer, then repaint.
+  // Called at 60 Hz from the editor's timerCallback (message thread).
+  for (int ch = 0; ch < kNScopeCount; ++ch) {
+    const float* buf = m_proc.getNsfScopeBuffer(ch);
+    if (buf)
+      m_scopes[ch]->process(buf, nessy::NsfEngine::kScopeBufferSize);
+  }
+  repaint();
+}
+
+// ---------------------------------------------------------------------------
 void NsfPlayerView::loadNsfFile() {
   m_chooser = std::make_unique<juce::FileChooser>(
       "Load NSF file", juce::File(), "*.nsf;*.nsfe");
@@ -321,7 +333,7 @@ void NsfPlayerWindow::setTheme(NessyTheme t) {
 
 void NsfPlayerWindow::refresh() {
   if (m_view)
-    m_view->repaint();
+    m_view->refresh();  // feeds scopes + repaints
 }
 
 void NsfPlayerWindow::closeButtonPressed() {

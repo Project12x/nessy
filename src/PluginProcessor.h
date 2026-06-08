@@ -77,6 +77,12 @@ public:
   void setNsfPlaying(bool p) { m_nsfPlaying.store(p, std::memory_order_release); }
   bool isNsfPlaying() const  { return m_nsfPlaying.load(std::memory_order_relaxed); }
 
+  // Per-channel scope buffer for the NSF player window (message thread, 60 Hz).
+  // Returns nullptr when no NSF engine is active or ch is out of range.
+  const float* getNsfScopeBuffer(int ch) const {
+    return m_activeNsf ? m_activeNsf->scopeBuffer(ch) : nullptr;
+  }
+
   // Drain the retire slot (call from message thread, e.g. editor timer, to free old engines).
   void retireOldEngine();
 

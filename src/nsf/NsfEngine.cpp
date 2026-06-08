@@ -92,6 +92,11 @@ struct NsfEngine::Impl
     double clock_rest   = 0.0;
     bool   loaded       = false;
 
+    // --- Per-channel scope ring buffers (lock-free visualizer, matches NessyAPU) ---
+    // Channels: 0=P1, 1=P2, 2=TRI, 3=NSE, 4=DMC
+    float  scopeBufs[NsfEngine::kScopeChannels][NsfEngine::kScopeBufferSize] = {};
+    int    scopeWritePos[NsfEngine::kScopeChannels] = {};
+
     Impl() : cpu(1789773.0) // NES_CPU constructor takes initial clock
     {
         // Allocate the two always-present chips immediately so that
@@ -345,6 +350,30 @@ void NsfEngine::renderSamples(int16_t* out, int count, double outputRate)
         // Mixer::Tick iterates all attached IRenderable amplifiers and calls Tick.
         p.mixer.Tick(static_cast<xgm::UINT32>(clk));
 
+        // --- Scope tap: record per-channel output after Tick, before Render ---
+        // Mirrors NessyAPU::recordVisualizer exactly (same out[] fields, same scales).
+        // Written lock-free on the audio thread; message thread reads — benign race,
+        // same pattern as NessyAPU::m_visualizerBuffers.
+        // apu->out[]: INT32; dmc->out[]: UINT32 — cast to float directly to avoid narrowing.
+        {
+            // apu->out[0]=P1 (0-15), apu->out[1]=P2 (0-15)
+            // dmc->out[0]=TRI (0-15), dmc->out[1]=NSE (0-15), dmc->out[2]=DMC (0-127)
+            const float kScales[kScopeChannels] = { 15.0f, 15.0f, 15.0f, 15.0f, 127.0f };
+            const float rawF[kScopeChannels] = {
+                static_cast<float>(p.apu->out[0]),
+                static_cast<float>(p.apu->out[1]),
+                static_cast<float>(p.dmc->out[0]),
+                static_cast<float>(p.dmc->out[1]),
+                static_cast<float>(p.dmc->out[2])
+            };
+            for (int ch = 0; ch < kScopeChannels; ++ch) {
+                float s = rawF[ch] / kScales[ch];
+                s = (s * 2.0f) - 1.0f; // unipolar 0..1 -> bipolar -1..1
+                p.scopeBufs[ch][p.scopeWritePos[ch]] = s;
+                p.scopeWritePos[ch] = (p.scopeWritePos[ch] + 1) % kScopeBufferSize;
+            }
+        }
+
         // Render: mixer sums all amplifier outputs into b[0]/b[1] (L/R).
         xgm::INT32 b[2] = {0, 0};
         p.mixer.Render(b);
@@ -355,6 +384,17 @@ void NsfEngine::renderSamples(int16_t* out, int count, double outputRate)
         else if (v < -32768) v = -32768;
         out[i] = static_cast<int16_t>(v);
     }
+}
+
+// ---------------------------------------------------------------------------
+// Scope buffer accessor
+// ---------------------------------------------------------------------------
+
+const float* NsfEngine::scopeBuffer(int ch) const
+{
+    if (ch < 0 || ch >= kScopeChannels)
+        return nullptr;
+    return impl_->scopeBufs[ch];
 }
 
 // ---------------------------------------------------------------------------

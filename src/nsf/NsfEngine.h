@@ -45,6 +45,15 @@ public:
     std::string chips() const;
     int songCount() const;
 
+    // Per-channel scope ring buffers — lock-free, written by audio thread,
+    // read by message thread (same benign pattern as NessyAPU::m_visualizerBuffers).
+    // Channels: 0=P1, 1=P2, 2=TRI, 3=NSE, 4=DMC.
+    static constexpr int kScopeChannels   = 5;
+    static constexpr int kScopeBufferSize = 512;
+    // Returns a pointer to the 512-float ring buffer for channel ch,
+    // or nullptr if ch is out of range. Header stays NSFPlay-symbol-free (PIMPL).
+    const float* scopeBuffer(int ch) const;
+
 private:
     void wireBus(); // implemented in NsfEngine.cpp where Impl is complete
 

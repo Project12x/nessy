@@ -31,6 +31,10 @@ public:
   void paintOverChildren(juce::Graphics&) override;
   void resized() override;
 
+  // Feed all scopes from the live NSF engine buffers and repaint.
+  // Called at 60 Hz by the editor's timerCallback via NsfPlayerWindow::refresh().
+  void refresh();
+
   // Number of channel scope frames in the right pane.
   static constexpr int kNumScopes = 5;
 
