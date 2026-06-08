@@ -17,6 +17,7 @@ target_link_libraries(nessy_tests PRIVATE Catch2::Catch2WithMain)
 target_sources(nessy_tests PRIVATE
     cpu/test_expansion_chips.cpp
     cpu/test_nsf_engine.cpp
+    cpu/test_nsf_bridge.cpp
     ${CMAKE_SOURCE_DIR}/src/nsf/NsfEngine.cpp
     ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/player/nsf/nsf.cpp
     ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/nes_apu.cpp

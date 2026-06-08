@@ -3,6 +3,7 @@
 #include "apu/Arpeggiator.h"
 #include "apu/NessyAPU.h"
 #include "apu/VoiceAllocator.h"
+#include "nsf/NsfMix.h"
 
 static juce::AudioProcessorValueTreeState::ParameterLayout
 createParameterLayout() {
@@ -141,7 +142,13 @@ NessyAudioProcessor::NessyAudioProcessor()
   });
 }
 
-NessyAudioProcessor::~NessyAudioProcessor() {}
+NessyAudioProcessor::~NessyAudioProcessor() {
+  // Free any engine that was published but not yet adopted by the audio thread.
+  delete m_pendingNsf.exchange(nullptr, std::memory_order_acquire);
+  // Free any engine that was retired by the audio thread but not yet collected.
+  delete m_retireNsf.exchange(nullptr, std::memory_order_acquire);
+  // m_activeNsf (unique_ptr) is freed automatically.
+}
 
 const juce::String NessyAudioProcessor::getName() const {
   return JucePlugin_Name;
@@ -159,11 +166,18 @@ const juce::String NessyAudioProcessor::getProgramName(int) { return {}; }
 void NessyAudioProcessor::changeProgramName(int, const juce::String &) {}
 
 void NessyAudioProcessor::prepareToPlay(double sampleRate,
-                                        int /*samplesPerBlock*/) {
+                                        int samplesPerBlock) {
   currentSampleRate = sampleRate;
 
   // Initialize APU with host sample rate
   apu->initialize(sampleRate);
+
+  // Pre-allocate NSF scratch buffer; avoids runtime realloc in processBlock.
+  m_nsfScratch.assign((size_t)juce::jmax(samplesPerBlock, 1), 0);
+
+  // Re-init NSF engine at the new rate if one is already active.
+  if (m_activeNsf)
+    m_activeNsf->init(m_nsfSong);
 
   // Apply initial channel settings from parameters
   apu->setChannelEnabled(
@@ -210,131 +224,165 @@ void NessyAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
                                        juce::MidiBuffer &midiMessages) {
   juce::ScopedNoDenormals noDenormals;
 
+  // --- RT-safe engine adoption ---
+  // Attempt to take ownership of an engine published by the message thread.
+  // RT-safety: exchange is lock-free; no allocation, no delete here.
+  // The retired engine is deposited in m_retireNsf for the message thread
+  // to delete. loadNsf() always calls retireOldEngine() before publishing,
+  // so the retire slot is free at this point (loads are rare + user-driven).
+  if (auto* pending = m_pendingNsf.exchange(nullptr, std::memory_order_acquire)) {
+    auto* old = m_activeNsf.release();
+    m_activeNsf.reset(pending);
+    if (old) {
+      // Deposit old engine for message-thread GC. Safe: slot was drained by
+      // loadNsf()->retireOldEngine() before this publish, so no engine is lost.
+      m_retireNsf.store(old, std::memory_order_release);
+    }
+  }
+
   auto numSamples = buffer.getNumSamples();
   auto *leftChannel = buffer.getWritePointer(0);
   auto *rightChannel = buffer.getWritePointer(1);
 
-  // Get master volume
+  // Get master volume (used by the shared DSP tail below)
   float masterVolume = parameters.getRawParameterValue("masterVolume")->load();
 
-  // Update duty cycles from parameters
-  int pulse1Duty =
-      static_cast<int>(parameters.getRawParameterValue("pulse1Duty")->load());
-  int pulse2Duty =
-      static_cast<int>(parameters.getRawParameterValue("pulse2Duty")->load());
-  apu->setPulseDuty(0, static_cast<NessyAPU::DutyCycle>(pulse1Duty));
-  apu->setPulseDuty(1, static_cast<NessyAPU::DutyCycle>(pulse2Duty));
-
-  // Update noise mode
-  bool noiseMode = parameters.getRawParameterValue("noiseMode")->load() > 0.5f;
-  apu->setNoiseMode(noiseMode);
-
-  // Sync base-channel enables live (change-detected — toggling must reach the
-  // APU at runtime, not only in prepareToPlay; VRC6 is synced separately below)
-  {
-    const char *enIds[5] = {"pulse1Enable", "pulse2Enable", "triangleEnable",
-                            "noiseEnable", "dmcEnable"};
-    const int enCh[5] = {NessyAPU::PULSE1, NessyAPU::PULSE2, NessyAPU::TRIANGLE,
-                         NessyAPU::NOISE, NessyAPU::DMC};
-    for (int i = 0; i < 5; ++i) {
-      bool e = parameters.getRawParameterValue(enIds[i])->load() > 0.5f;
-      if (e != m_chEnable[i]) {
-        m_chEnable[i] = e;
-        apu->setChannelEnabled(enCh[i], e);
-      }
-    }
-  }
-
-  // Update voice allocation mode
-  int voiceMode =
-      static_cast<int>(parameters.getRawParameterValue("voiceMode")->load());
-  voiceAllocator->setMode(static_cast<VoiceAllocator::Mode>(voiceMode));
-
-  // Update pitch split point
-  int splitPoint =
-      static_cast<int>(parameters.getRawParameterValue("splitPoint")->load());
-  voiceAllocator->setSplitPoint(splitPoint);
-
-  // Sync VRC6 enable state to voice allocator
-  bool vrc6Enabled =
-      parameters.getRawParameterValue("vrc6Enable")->load() > 0.5f;
-  voiceAllocator->setVRC6Enabled(vrc6Enabled);
-  apu->setVRC6Enabled(vrc6Enabled);
-
-  // Sync macro presets per channel
-  const char* macroIds[] = {
-      "macroPulse1", "macroPulse2", "macroTri", "macroNoise",
-      "macroVrc6P1", "macroVrc6P2", "macroVrc6Saw"};
-  const int macroChannels[] = {
-      NessyAPU::PULSE1, NessyAPU::PULSE2, NessyAPU::TRIANGLE, NessyAPU::NOISE,
-      NessyAPU::VRC6_PULSE1, NessyAPU::VRC6_PULSE2, NessyAPU::VRC6_SAW};
-  for (int i = 0; i < 7; ++i)
-    apu->setMacroPreset(macroChannels[i],
-        static_cast<int>(parameters.getRawParameterValue(macroIds[i])->load()));
-
-  // Sync Hardware Sweep Configs
-  apu->setManualSweepConfig(
-      0, // Pulse 1
-      parameters.getRawParameterValue("sweep1Enable")->load() > 0.5f,
-      parameters.getRawParameterValue("sweep1Dir")->load() > 0.5f,
-      static_cast<int>(parameters.getRawParameterValue("sweep1Rate")->load()),
-      static_cast<int>(parameters.getRawParameterValue("sweep1Shift")->load()));
-  apu->setManualSweepConfig(
-      1, // Pulse 2
-      parameters.getRawParameterValue("sweep2Enable")->load() > 0.5f,
-      parameters.getRawParameterValue("sweep2Dir")->load() > 0.5f,
-      static_cast<int>(parameters.getRawParameterValue("sweep2Rate")->load()),
-      static_cast<int>(parameters.getRawParameterValue("sweep2Shift")->load()));
-
-  // Sync Portamento Config
-  bool portamentoEnable = parameters.getRawParameterValue("portamentoEnable")->load() > 0.5f;
-  float portamentoSpeed = parameters.getRawParameterValue("portamentoSpeed")->load();
-  apu->setPortamento(portamentoEnable, portamentoSpeed);
-
-  // Sync Arpeggiator Config
-  bool arpEnabled = parameters.getRawParameterValue("arpEnable")->load() > 0.5f;
-  apu->setArpEnabled(arpEnabled);
-  apu->setArpPattern(static_cast<int>(parameters.getRawParameterValue("arpPattern")->load()));
-  apu->setArpOctaves(static_cast<int>(parameters.getRawParameterValue("arpOctaves")->load()));
-
-  // Add virtual keyboard events to the MIDI buffer
-  keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
-
-  // Process MIDI messages
-  auto* arpeggiator = apu->getArpeggiator();
-  for (const auto metadata : midiMessages) {
-    auto message = metadata.getMessage();
-
-    if (message.isNoteOn()) {
-      lastVelocity = message.getFloatVelocity();
-      if (arpEnabled) {
-        // Feed held notes to arpeggiator; it dispatches via 60Hz callback
-        arpeggiator->noteOn(message.getNoteNumber());
-      } else {
-        voiceAllocator->noteOn(message.getChannel() - 1, message.getNoteNumber(),
-                               message.getFloatVelocity());
-      }
-    } else if (message.isNoteOff()) {
-      if (arpEnabled) {
-        arpeggiator->noteOff(message.getNoteNumber());
-        // Release when all notes released
-        if (!arpeggiator->hasNotes())
-          voiceAllocator->arpNoteOff();
-      } else {
-        voiceAllocator->noteOff(message.getChannel() - 1,
-                                message.getNoteNumber());
-      }
-    } else if (message.isAllNotesOff() || message.isAllSoundOff()) {
-      arpeggiator->reset();
-      voiceAllocator->allNotesOff();
-    }
-  }
-
-  // CPU profiling start
+  // CPU profiling start (covers both NSF and Synth paths)
   cpuMeter.startBlock();
 
-  // Generate audio from APU
-  apu->process(leftChannel, rightChannel, numSamples);
+  if (m_playbackMode.load(std::memory_order_relaxed) == 1 && m_activeNsf) {
+    // === NSF PLAYBACK PATH ===
+    // Grow scratch if the host raised block size between prepareToPlay calls.
+    // Steady-state: no realloc (sized in prepareToPlay).
+    if ((int)m_nsfScratch.size() < numSamples)
+      m_nsfScratch.assign((size_t)numSamples, 0);
+
+    m_activeNsf->renderSamples(m_nsfScratch.data(), numSamples, currentSampleRate);
+
+    // Mono int16 -> stereo float (see NsfMix.h for unit-tested implementation).
+    auto* R = buffer.getNumChannels() > 1 ? rightChannel : leftChannel;
+    nsfMonoToStereo(m_nsfScratch.data(), leftChannel, R, numSamples);
+  } else {
+    // === SYNTH PATH — VERBATIM (unchanged) ===
+
+    // Update duty cycles from parameters
+    int pulse1Duty =
+        static_cast<int>(parameters.getRawParameterValue("pulse1Duty")->load());
+    int pulse2Duty =
+        static_cast<int>(parameters.getRawParameterValue("pulse2Duty")->load());
+    apu->setPulseDuty(0, static_cast<NessyAPU::DutyCycle>(pulse1Duty));
+    apu->setPulseDuty(1, static_cast<NessyAPU::DutyCycle>(pulse2Duty));
+
+    // Update noise mode
+    bool noiseMode = parameters.getRawParameterValue("noiseMode")->load() > 0.5f;
+    apu->setNoiseMode(noiseMode);
+
+    // Sync base-channel enables live (change-detected — toggling must reach the
+    // APU at runtime, not only in prepareToPlay; VRC6 is synced separately below)
+    {
+      const char *enIds[5] = {"pulse1Enable", "pulse2Enable", "triangleEnable",
+                              "noiseEnable", "dmcEnable"};
+      const int enCh[5] = {NessyAPU::PULSE1, NessyAPU::PULSE2, NessyAPU::TRIANGLE,
+                           NessyAPU::NOISE, NessyAPU::DMC};
+      for (int i = 0; i < 5; ++i) {
+        bool e = parameters.getRawParameterValue(enIds[i])->load() > 0.5f;
+        if (e != m_chEnable[i]) {
+          m_chEnable[i] = e;
+          apu->setChannelEnabled(enCh[i], e);
+        }
+      }
+    }
+
+    // Update voice allocation mode
+    int voiceMode =
+        static_cast<int>(parameters.getRawParameterValue("voiceMode")->load());
+    voiceAllocator->setMode(static_cast<VoiceAllocator::Mode>(voiceMode));
+
+    // Update pitch split point
+    int splitPoint =
+        static_cast<int>(parameters.getRawParameterValue("splitPoint")->load());
+    voiceAllocator->setSplitPoint(splitPoint);
+
+    // Sync VRC6 enable state to voice allocator
+    bool vrc6Enabled =
+        parameters.getRawParameterValue("vrc6Enable")->load() > 0.5f;
+    voiceAllocator->setVRC6Enabled(vrc6Enabled);
+    apu->setVRC6Enabled(vrc6Enabled);
+
+    // Sync macro presets per channel
+    const char* macroIds[] = {
+        "macroPulse1", "macroPulse2", "macroTri", "macroNoise",
+        "macroVrc6P1", "macroVrc6P2", "macroVrc6Saw"};
+    const int macroChannels[] = {
+        NessyAPU::PULSE1, NessyAPU::PULSE2, NessyAPU::TRIANGLE, NessyAPU::NOISE,
+        NessyAPU::VRC6_PULSE1, NessyAPU::VRC6_PULSE2, NessyAPU::VRC6_SAW};
+    for (int i = 0; i < 7; ++i)
+      apu->setMacroPreset(macroChannels[i],
+          static_cast<int>(parameters.getRawParameterValue(macroIds[i])->load()));
+
+    // Sync Hardware Sweep Configs
+    apu->setManualSweepConfig(
+        0, // Pulse 1
+        parameters.getRawParameterValue("sweep1Enable")->load() > 0.5f,
+        parameters.getRawParameterValue("sweep1Dir")->load() > 0.5f,
+        static_cast<int>(parameters.getRawParameterValue("sweep1Rate")->load()),
+        static_cast<int>(parameters.getRawParameterValue("sweep1Shift")->load()));
+    apu->setManualSweepConfig(
+        1, // Pulse 2
+        parameters.getRawParameterValue("sweep2Enable")->load() > 0.5f,
+        parameters.getRawParameterValue("sweep2Dir")->load() > 0.5f,
+        static_cast<int>(parameters.getRawParameterValue("sweep2Rate")->load()),
+        static_cast<int>(parameters.getRawParameterValue("sweep2Shift")->load()));
+
+    // Sync Portamento Config
+    bool portamentoEnable = parameters.getRawParameterValue("portamentoEnable")->load() > 0.5f;
+    float portamentoSpeed = parameters.getRawParameterValue("portamentoSpeed")->load();
+    apu->setPortamento(portamentoEnable, portamentoSpeed);
+
+    // Sync Arpeggiator Config
+    bool arpEnabled = parameters.getRawParameterValue("arpEnable")->load() > 0.5f;
+    apu->setArpEnabled(arpEnabled);
+    apu->setArpPattern(static_cast<int>(parameters.getRawParameterValue("arpPattern")->load()));
+    apu->setArpOctaves(static_cast<int>(parameters.getRawParameterValue("arpOctaves")->load()));
+
+    // Add virtual keyboard events to the MIDI buffer
+    keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
+
+    // Process MIDI messages
+    auto* arpeggiator = apu->getArpeggiator();
+    for (const auto metadata : midiMessages) {
+      auto message = metadata.getMessage();
+
+      if (message.isNoteOn()) {
+        lastVelocity = message.getFloatVelocity();
+        if (arpEnabled) {
+          // Feed held notes to arpeggiator; it dispatches via 60Hz callback
+          arpeggiator->noteOn(message.getNoteNumber());
+        } else {
+          voiceAllocator->noteOn(message.getChannel() - 1, message.getNoteNumber(),
+                                 message.getFloatVelocity());
+        }
+      } else if (message.isNoteOff()) {
+        if (arpEnabled) {
+          arpeggiator->noteOff(message.getNoteNumber());
+          // Release when all notes released
+          if (!arpeggiator->hasNotes())
+            voiceAllocator->arpNoteOff();
+        } else {
+          voiceAllocator->noteOff(message.getChannel() - 1,
+                                  message.getNoteNumber());
+        }
+      } else if (message.isAllNotesOff() || message.isAllSoundOff()) {
+        arpeggiator->reset();
+        voiceAllocator->allNotesOff();
+      }
+    }
+
+    // Generate audio from APU
+    apu->process(leftChannel, rightChannel, numSamples);
+  }
+
+  // === SHARED DSP TAIL (both Synth and NSF paths) ===
 
   // DC blocking (NES APU has DC offset, especially pulse/noise channels)
   dcBlockerL.processBlock(leftChannel, numSamples);
@@ -372,6 +420,68 @@ void NessyAudioProcessor::setStateInformation(const void *data,
       getXmlFromBinary(data, sizeInBytes));
   if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
     parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+}
+
+// ============================================================
+// NSF playback API — message-thread only
+// ============================================================
+
+void NessyAudioProcessor::retireOldEngine() {
+  // Drain the retire slot: delete any engine the audio thread deposited there.
+  // RT-safety: this runs on the message thread; delete is intentional here.
+  if (auto* old = m_retireNsf.exchange(nullptr, std::memory_order_acquire))
+    delete old;
+}
+
+void NessyAudioProcessor::loadNsf(const uint8_t* data, size_t size, int song) {
+  // Step 1: drain the retire slot so the audio thread will find it empty when
+  // it deposits the currently-active engine after adopting the new one.
+  retireOldEngine();
+
+  // Step 2: allocate and initialise the new engine (NOT RT-safe — message thread only).
+  auto* eng = new nessy::NsfEngine();
+  if (!eng->load(data, size)) {
+    delete eng;
+    return; // TODO: surface load error to UI (B.3)
+  }
+  eng->init(song);
+
+  // Step 3: cache metadata before publishing (safe to read from message thread).
+  m_nsfTitle = juce::String(eng->title());
+  m_nsfSongCount = eng->songCount();
+
+  // Step 4: cache bytes for selectNsfSong().
+  m_nsfData.assign(data, data + size);
+  m_nsfSong = song;
+
+  // Step 5: publish to the audio thread. If a previous publish was never
+  // adopted (very fast double-load), delete it here on the message thread.
+  if (auto* stale = m_pendingNsf.exchange(eng, std::memory_order_release))
+    delete stale;
+
+  // Step 6: switch mode.
+  m_playbackMode.store(1, std::memory_order_release);
+}
+
+void NessyAudioProcessor::selectNsfSong(int song) {
+  if (m_nsfData.empty()) return;
+  if (song < 0) song = 0;
+  // Rebuild and republish the engine at the new song index.
+  loadNsf(m_nsfData.data(), m_nsfData.size(), song);
+}
+
+void NessyAudioProcessor::setPlaybackMode(bool nsf) {
+  m_playbackMode.store(nsf ? 1 : 0, std::memory_order_release);
+}
+
+juce::String NessyAudioProcessor::getNsfTitle() const {
+  // Reads cached value set in loadNsf() — no data race with audio thread.
+  return m_nsfTitle;
+}
+
+int NessyAudioProcessor::getNsfSongCount() const {
+  // Reads cached value set in loadNsf() — no data race with audio thread.
+  return m_nsfSongCount;
 }
 
 juce::AudioProcessor *JUCE_CALLTYPE createPluginFilter() {

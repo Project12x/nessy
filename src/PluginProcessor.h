@@ -2,7 +2,9 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_utils/juce_audio_utils.h>
+#include <atomic>
 #include <memory>
+#include <vector>
 
 // ghostmoon DSP utilities
 #include <ghostmoon/SafetyLimiter.h>
@@ -59,6 +61,16 @@ public:
   // CPU load for diagnostics
   float getCpuLoad() const { return cpuMeter.getLoadPercent(); }
 
+  // --- NSF playback API (call from message thread only) ---
+  void loadNsf(const uint8_t* data, size_t size, int song = 0);
+  void selectNsfSong(int song);
+  void setPlaybackMode(bool nsf);
+  bool isNsfMode() const { return m_playbackMode.load(std::memory_order_relaxed) == 1; }
+  juce::String getNsfTitle() const;
+  int getNsfSongCount() const;
+  // Drain the retire slot (call from message thread, e.g. editor timer, to free old engines).
+  void retireOldEngine();
+
 private:
   // Audio parameters
   juce::AudioProcessorValueTreeState parameters;
@@ -86,6 +98,37 @@ private:
   gm::DCBlocker dcBlockerL, dcBlockerR;
   gm::CpuMeter cpuMeter;
   gm::ParamSmoother<float> volumeSmoother{0.02f};
+
+  // --- NSF playback state ---
+  // 0 = Synth, 1 = NSF. Readable from both threads; written by message thread only.
+  std::atomic<int> m_playbackMode { 0 };
+
+  // Lock-free engine handoff (message thread -> audio thread).
+  // loadNsf() publishes here; processBlock() adopts atomically.
+  std::atomic<nessy::NsfEngine*> m_pendingNsf { nullptr };
+
+  // Lock-free retire slot (audio thread -> message thread).
+  // processBlock() deposits retired engines here; retireOldEngine() deletes them.
+  // RT-safety contract: loadNsf() calls retireOldEngine() before publishing,
+  // ensuring the slot is empty when the audio thread next deposits a stale engine.
+  std::atomic<nessy::NsfEngine*> m_retireNsf { nullptr };
+
+  // Audio-thread-owned active engine. Mutated only inside processBlock().
+  std::unique_ptr<nessy::NsfEngine> m_activeNsf;
+
+  // Pre-allocated scratch for mono int16 render (sized in prepareToPlay).
+  std::vector<int16_t> m_nsfScratch;
+
+  // Cached NSF bytes for selectNsfSong().
+  std::vector<uint8_t> m_nsfData;
+
+  // Active song index (message-thread-written, used on rebuild in selectNsfSong).
+  int m_nsfSong { 0 };
+
+  // Cached metadata set in loadNsf() from the new engine before publishing,
+  // safe to read from the message thread without touching m_activeNsf.
+  juce::String m_nsfTitle;
+  int m_nsfSongCount { 0 };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NessyAudioProcessor)
 };
