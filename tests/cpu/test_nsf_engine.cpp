@@ -16,7 +16,7 @@ TEST_CASE("NSF parses the synthetic header", "[nsf][parse]") {
 
 TEST_CASE("NsfEngine runs INIT and rests in the player loop", "[nsf][init]") {
     nessy::NsfEngine eng;
-    REQUIRE(eng.load(kSyntheticNsf, (xgm::UINT32)sizeof(kSyntheticNsf)));
+    REQUIRE(eng.load(kSyntheticNsf, sizeof(kSyntheticNsf)));
     eng.init(0);
     // After Start() drains INIT, the CPU rests at the player-stub self-loop.
     // PLAYER_RESERVED = $4100; breakpoint = $4103 (JMP $4103 — the self-loop).
@@ -28,7 +28,7 @@ TEST_CASE("NsfEngine runs INIT and rests in the player loop", "[nsf][init]") {
 
 TEST_CASE("NsfEngine plays a synthetic NSF (non-silent)", "[nsf][render]") {
     nessy::NsfEngine eng;
-    REQUIRE(eng.load(kSyntheticNsf, (xgm::UINT32)sizeof(kSyntheticNsf)));
+    REQUIRE(eng.load(kSyntheticNsf, sizeof(kSyntheticNsf)));
     eng.init(0);
     std::vector<int16_t> buf(44100);                 // ~1 second @ 44.1 kHz
     eng.renderSamples(buf.data(), (int)buf.size(), 44100.0);
