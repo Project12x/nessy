@@ -71,6 +71,25 @@ target_sources(Nessy
         src/apu/nsfplay/xgm/devices/Memory/nsf2_vectors.cpp
         src/apu/nsfplay/xgm/devices/Misc/nsf2_irq.cpp
         src/apu/nsfplay/xgm/devices/Misc/log_cpu.cpp
+
+        # NSF engine + expansion chips (Phase B.2)
+        src/nsf/NsfEngine.cpp
+        src/apu/nsfplay/xgm/player/nsf/nsf.cpp
+        src/apu/nsfplay/xgm/devices/Sound/nes_mmc5.cpp
+        src/apu/nsfplay/xgm/devices/Sound/nes_fds.cpp
+        src/apu/nsfplay/xgm/devices/Sound/nes_n106.cpp
+        src/apu/nsfplay/xgm/devices/Sound/nes_vrc7.cpp
+        src/apu/nsfplay/xgm/devices/Sound/nes_fme7.cpp
+        src/apu/nsfplay/xgm/devices/Sound/legacy/emu2413.c
+        src/apu/nsfplay/xgm/devices/Sound/legacy/emu2149.c
+)
+
+# emu2413.c and emu2149.c are C99 — force the C compiler for the Nessy target
+set_source_files_properties(
+    src/apu/nsfplay/xgm/devices/Sound/legacy/emu2413.c
+    src/apu/nsfplay/xgm/devices/Sound/legacy/emu2149.c
+    TARGET_DIRECTORY Nessy
+    PROPERTIES LANGUAGE C
 )
 
 # Include directories
@@ -80,7 +99,9 @@ target_include_directories(Nessy
         ${CMAKE_CURRENT_SOURCE_DIR}/src/apu
         ${CMAKE_CURRENT_SOURCE_DIR}/src/apu/blip_buffer
         ${CMAKE_CURRENT_SOURCE_DIR}/src/apu/nsfplay
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/apu/nsfplay/xgm/player
         ${CMAKE_CURRENT_SOURCE_DIR}/src/apu/utils
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nsf
 )
 
 # JUCE modules

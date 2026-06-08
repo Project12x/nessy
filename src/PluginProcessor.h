@@ -10,6 +10,9 @@
 #include <ghostmoon/CpuMeter.h>
 #include <ghostmoon/ParamSmoother.h>
 
+// NSF engine (PIMPL — safe alongside JUCE headers, no NSFPlay macro leakage)
+#include "nsf/NsfEngine.h"
+
 class NessyAPU;
 class VoiceAllocator;
 
