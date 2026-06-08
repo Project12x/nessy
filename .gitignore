@@ -26,3 +26,6 @@ dn-famitracker-source/
 
 # Brainstorm visual-companion scratch (superpowers)
 .superpowers/
+
+# Test NSF files (downloaded for manual testing; not part of the build)
+test-nsfs/
