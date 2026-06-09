@@ -10,6 +10,7 @@
 #include "nsfplay/xgm/devices/Sound/nes_dmc.h"
 #include "nsfplay/xgm/devices/Sound/nes_vrc6.h"
 #include "nsfplay/xgm/devices/Sound/nes_mmc5.h"
+#include "nsfplay/xgm/devices/Sound/nes_fme7.h"
 
 // km6502 (via nes_cpu.h) defines short calling-convention macros that leak
 // into JUCE headers and cause C2059 syntax errors.  Undefine them here,
@@ -57,6 +58,7 @@ NessyAPU::NessyAPU() {
   m_apu2->SetCPU(m_cpu.get());
   m_vrc6        = std::make_unique<VRC6Exposed>();
   m_mmc5        = std::make_unique<xgm::NES_MMC5>();
+  m_fme7        = std::make_unique<xgm::NES_FME7>();
   m_blipBuffer  = std::make_unique<Blip_Buffer>();
   m_memory      = std::make_unique<NessyMemory>();
   m_macroEngine = std::make_unique<MacroEngine>();
@@ -94,6 +96,10 @@ void NessyAPU::initialize(double sampleRate) {
   m_mmc5->SetClock(m_clockRate);
   m_mmc5->SetRate(m_sampleRate);
 
+  // Configure FME7 (note: NES_FME7 ignores SetClock/SetRate — runs at fixed DEFAULT_CLOCK)
+  m_fme7->SetClock(m_clockRate);
+  m_fme7->SetRate(m_sampleRate);
+
   // Disable nondeterministic behavior
   m_apu2->SetOption(xgm::NES_DMC::OPT_RANDOMIZE_TRI, 0);
   m_apu2->SetOption(xgm::NES_DMC::OPT_RANDOMIZE_NOISE, 0);
@@ -106,6 +112,8 @@ void NessyAPU::reset() {
   m_apu2->Reset();
   m_vrc6->Reset();
   m_mmc5->Reset();
+  m_fme7->Reset();
+  m_fme7Mixer = 0x3F;
   m_blipBuffer->clear();
   m_clockAccumulator = 0.0;
 
@@ -199,6 +207,13 @@ int NessyAPU::process(float *leftOutput, float *rightOutput, int numSamples) {
       mixed += static_cast<float>(bufferMMC5[0]) / 65536.0f;
     }
 
+    if (m_fme7Enabled) {
+      int32_t bufferFME7[2] = {0};
+      m_fme7->Render(bufferFME7);
+      // FME7 per-channel peak is ~2700; /8000 is a starting divisor — tune by ear.
+      mixed += static_cast<float>(bufferFME7[0]) / 8000.0f;
+    }
+
     float finalSample = juce::jlimit(-1.0f, 1.0f, mixed);
     leftOutput[samplesGenerated] = finalSample;
     rightOutput[samplesGenerated] = finalSample;
@@ -220,6 +235,9 @@ void NessyAPU::clockAPU(int cpuClocks) {
     m_mmc5->TickFrameSequence(cpuClocks); // MMC5 has its own length/env sequencer
     m_mmc5->Tick(cpuClocks);
   }
+
+  if (m_fme7Enabled)
+    m_fme7->Tick(cpuClocks); // FME7 handles its own internal division (no TickFrameSequence)
 
   // Macro engine + arpeggiator: fire at ~60Hz (one NES frame)
   m_macroClockAccumulator += cpuClocks;
@@ -360,6 +378,18 @@ void NessyAPU::noteOn(int channel, int midiNote, float velocity) {
     m_mmc5->Write(0x5007, ((period >> 8) & 0x07) | 0xF8);
     break;
   }
+
+  // Sunsoft 5B / FME7 expansion channels (PSG square tones)
+  case FME7_A: case FME7_B: case FME7_C: {
+    int idx = channel - FME7_A;                  // 0,1,2
+    uint16_t p = midiToFME7Period(midiNote);
+    fme7Write(idx * 2,     p & 0xFF);            // period low
+    fme7Write(idx * 2 + 1, (p >> 8) & 0x0F);    // period high (12-bit)
+    m_fme7Mixer &= ~(1 << idx);                  // enable this tone (clear disable bit)
+    fme7Write(0x07, m_fme7Mixer);
+    fme7Write(0x08 + idx, volume & 0x0F);        // amplitude 0-15, fixed (D4=0)
+    break;
+  }
   }
 }
 
@@ -408,6 +438,15 @@ void NessyAPU::noteOff(int channel) {
     m_mmc5->Write(0x5015, 0x01); // disable square 1, keep square 0 enabled
     m_mmc5->Write(0x5004, 0x30);
     break;
+
+  // Sunsoft 5B / FME7 note off
+  case FME7_A: case FME7_B: case FME7_C: {
+    int idx = channel - FME7_A;
+    fme7Write(0x08 + idx, 0x00);   // amplitude 0
+    m_fme7Mixer |= (1 << idx);     // disable this tone
+    fme7Write(0x07, m_fme7Mixer);
+    break;
+  }
   }
 }
 
@@ -494,6 +533,29 @@ void NessyAPU::setMmc5PulseDuty(int pulseChannel, DutyCycle duty) {
     uint8_t vol = static_cast<uint8_t>(m_velocity[channel] * 15.0f);
     m_mmc5->Write(pulseChannel == 0 ? 0x5000 : 0x5004, dutyBits | 0x30 | vol);
   }
+}
+
+void NessyAPU::setSunsoft5bEnabled(bool enabled) {
+  m_fme7Enabled = enabled;
+  m_channelEnabled[FME7_A] = enabled;
+  m_channelEnabled[FME7_B] = enabled;
+  m_channelEnabled[FME7_C] = enabled;
+  if (!enabled) {
+    fme7Write(0x08, 0x00); fme7Write(0x09, 0x00); fme7Write(0x0A, 0x00); // amps 0
+    m_fme7Mixer = 0x3F;
+    fme7Write(0x07, m_fme7Mixer);
+  }
+}
+
+void NessyAPU::fme7Write(uint8_t reg, uint8_t val) {
+  m_fme7->Write(0xC000, reg);  // latch register address
+  m_fme7->Write(0xE000, val);  // write data
+}
+
+uint16_t NessyAPU::midiToFME7Period(int midiNote) const {
+  double freq = FREQ_A4 * std::pow(2.0, (midiNote - MIDI_A4) / 12.0);
+  double period = 1789772.0 / (32.0 * freq); // AY PSG, no -1; fixed chip clock
+  return static_cast<uint16_t>(juce::jlimit(1.0, 4095.0, period));
 }
 
 void NessyAPU::setVRC6PulseDuty(int pulseChannel, int duty) {

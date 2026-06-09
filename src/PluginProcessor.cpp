@@ -79,6 +79,10 @@ createParameterLayout() {
       juce::ParameterID("mmc5Pulse2Duty", 1), "MMC5 Pulse 2 Duty",
       juce::StringArray{"12.5%", "25%", "50%", "75%"}, 2));
 
+  // Sunsoft 5B / FME7 Expansion
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID("sunsoft5bEnable", 1), "Sunsoft 5B Enable", false));
+
   // Macro presets per channel
   juce::StringArray macroPresetNames{
       "None", "Plain", "Vibrato", "Vol Decay",
@@ -353,6 +357,11 @@ void NessyAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         static_cast<int>(parameters.getRawParameterValue("mmc5Pulse1Duty")->load())));
     apu->setMmc5PulseDuty(1, static_cast<NessyAPU::DutyCycle>(
         static_cast<int>(parameters.getRawParameterValue("mmc5Pulse2Duty")->load())));
+
+    // Sync Sunsoft 5B / FME7 enable state to voice allocator
+    bool fme7Enabled = parameters.getRawParameterValue("sunsoft5bEnable")->load() > 0.5f;
+    voiceAllocator->setGroupEnabled(nessy::ChipGroup::FME7, fme7Enabled);
+    apu->setSunsoft5bEnabled(fme7Enabled);
 
     // Sync macro presets per channel
     const char* macroIds[] = {

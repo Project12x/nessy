@@ -15,6 +15,7 @@ class NES_APU;
 class NES_DMC;
 class NES_VRC6;
 class NES_MMC5;
+class NES_FME7;
 } // namespace xgm
 class Arpeggiator;
 class Blip_Buffer;
@@ -87,6 +88,9 @@ public:
   void setMmc5Enabled(bool enabled);
   void setMmc5PulseDuty(int pulseChannel, DutyCycle duty); // 0-3
 
+  // Sunsoft 5B / FME7 configuration
+  void setSunsoft5bEnabled(bool enabled);
+
   // Get channel frequency for visualization
   double getChannelFrequency(int channel) const;
 
@@ -128,6 +132,8 @@ public:
 
 private:
   void clockAPU(int cpuClocks);
+  uint16_t midiToFME7Period(int midiNote) const; // AY PSG period (12-bit)
+  void fme7Write(uint8_t reg, uint8_t val);      // latch+data convenience
 
   // NSFPlay cores
   // Idle CPU required by NES_DMC: the DMC calls cpu->UpdateIRQ()/StealCycles()
@@ -139,6 +145,7 @@ private:
   std::unique_ptr<xgm::NES_DMC> m_apu2;  // Triangle, Noise, DMC
   std::unique_ptr<xgm::NES_VRC6> m_vrc6; // VRC6 expansion
   std::unique_ptr<xgm::NES_MMC5> m_mmc5; // MMC5 expansion (2 squares)
+  std::unique_ptr<xgm::NES_FME7> m_fme7; // Sunsoft 5B (3 PSG squares)
 
   // Blip_Buffer for bandlimited synthesis
   std::unique_ptr<Blip_Buffer> m_blipBuffer;
@@ -174,6 +181,8 @@ private:
   bool m_vrc6Enabled = false;
   bool m_mmc5Enabled = false;
   DutyCycle m_mmc5PulseDuty[2] = {DUTY_50, DUTY_50};
+  bool    m_fme7Enabled = false;
+  uint8_t m_fme7Mixer   = 0x3F; // all tones+noise disabled (1 = off)
 
   // Hardware Sweep configuration
   struct SweepConfig {

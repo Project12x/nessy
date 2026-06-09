@@ -193,6 +193,18 @@ TEST_CASE("enabling the MMC5 group adds its channels to the pool", "[voicealloc]
   REQUIRE(sink.onChannels() == std::vector<int>{0, 1, 2, 8, 9});
 }
 
+TEST_CASE("enabling the 5B group adds its three channels to the pool", "[voicealloc]") {
+  MockVoiceSink sink;
+  VoiceAllocator va;
+  va.setChannels(nessy::kChannels.data(), nessy::kChannels.size());
+  va.setAPU(&sink);
+  va.setGroupEnabled(nessy::ChipGroup::FME7, true);   // Core2A03 (0,1,2) + FME7 (10,11,12)
+  va.setMode(VoiceAllocator::Mode::ROUND_ROBIN);
+
+  for (int n = 60; n < 66; ++n) va.noteOn(0, n, 1.0f); // 6 notes -> 0,1,2,10,11,12
+  REQUIRE(sink.onChannels() == std::vector<int>{0, 1, 2, 10, 11, 12});
+}
+
 TEST_CASE("noteOff releases the channel holding that note", "[voicealloc]") {
   MockVoiceSink sink;
   VoiceAllocator va = makeCoreAllocator(sink);
