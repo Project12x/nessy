@@ -120,10 +120,24 @@ Per project policy, all vendored cores are recorded before copying.
 
 - **Phase A — Foundation.** Restore real `NES_CPU`; vendor + compile the 5 chips + `emu2413`/`emu2149`; smoke-test each chip by direct register writes; validate the CPU against a known 6502 test ROM (e.g., Klaus Dormann functional test). Confirm the synth is byte-identical (CPU restore doesn't disturb `NES_DMC`). *No UI.*
 - **Phase B — NSF jukebox.** `NsfFile`/NSFe parser, `BankMapper`, `NesBus`, `NsfPlayer`, `NsfEngine`, `playbackMode` switch, RT-safe file load, NSF-mode UI (cartridge → loader + subsong nav + metadata + auto-populated scope strip). **Ships the requested feature and exercises every chip against real NSFs.**
-- **Phase C — Synth chip expansion.** Wire chips into `NessyAPU` + `VoiceAllocator` (unified pool, per-chip enable groups) + params/macros, incrementally: easy (MMC5 pulses, 5B squares) → wavetable (FDS, N163) → FM (VRC7 + patch model).
+- **Phase C — Synth chip expansion.** Wire chips into `NessyAPU` + `VoiceAllocator` (unified pool, per-chip enable groups) + params/macros. **Infra-first sub-phasing** (decided 2026-06-08, see §10a):
+  - **C.1 — Channel/voice infra refactor.** Data-driven channel registry + generalize `VoiceAllocator` to N channels; **no new chip audio, no new params, no UI**. Behavior-preserving for today's 2A03+VRC6 set; verified by a new Catch2 `VoiceAllocator` suite + regression assertion.
+  - **C.2 — Easy chips.** MMC5 (2 pulses) + Sunsoft 5B (3 squares) audio in `NessyAPU` + params/macros, allocated through the new pool.
+  - **C.3 — Wavetable chips.** FDS + Namco 163 (up to 8 ch) audio + wavetable params.
+  - **C.4 — FM.** VRC7 + custom-patch model (highest risk; tail).
 - **Phase D — Multi-chip synth UI.** The A+C deck (fixed console + tabbed cartridge bay) + the all-channels mini-scope strip; per-chip param controls.
 
 Ordering front-loads the jukebox and de-risks the chips (real NSFs stress them) before the synth integration depends on them.
+
+### 10a. Phase C.1 design — channel/voice infra refactor (infra-first)
+
+Decided via brainstorm (2026-06-08): generalize the voice/channel layer **before** any new chip audio, to quarantine the 8→~28-channel `VoiceAllocator` change from chip integration. No audible change lands in C.1.
+
+- **Channel registry** — a single `constexpr` source of truth listing every channel (2A03, VRC6, and the five future chips) as `ChannelDesc { id, chipGroup, kind (square/triangle/saw/wavetable/FM/noise/dpcm), role (melodic/percussion), splitCapable }`. Future chips appear in the table but their groups default **disabled**. Replaces the hardcoded `array<int,6>` channel order and `NUM_TOTAL_VOICES = 8`.
+- **VoiceAllocator generalized** — iterates the registry filtered to the **active set** (enabled chip groups ∩ melodic). Round-Robin / Pitch-Split / Unison / voice-steal all operate over that set. Pitch-Split keeps a **single** split point partitioning active melodic channels into low/high-capable sets (richer multi-tier splits are a non-goal). Noise/DPCM (and 5B noise/env later) stay non-melodic.
+- **Behavior preservation** — with only the 2A03 + VRC6 groups enabled (today's exact set), allocation is **identical** to current; `NessyAPU` is untouched.
+- **Verification (unit tests + regression)** — a new Catch2 `VoiceAllocator` suite covering allocation order, voice-steal, pitch-split partition, unison stacking, per-group gating, and non-melodic exclusion, plus a regression case asserting the legacy 8-channel set matches today's behavior.
+- **Out of scope for C.1** — no new APVTS params, no new chip audio, no UI change. Rejected alternatives: per-chip allocator modules (over-engineered for a fixed chip set) and growing the enums/arrays with conditionals (a 28-channel tangle that fights the test goal).
 
 ## 11. Threading / RT-safety
 
@@ -155,7 +169,7 @@ The engine is deterministic, so this is the project's opportunity to start the a
 
 - **VRC7 FM (emu2413)** integration + the custom-patch model is the highest effort/risk core. (Phase C tail.)
 - **Namco 163** time-multiplexes 1–8 channels — affects mixing/timing and the dynamic scope count.
-- **VoiceAllocator at ~28 channels** — Pitch-Split generalization and pool ergonomics need care.
+- **VoiceAllocator at ~28 channels** — Pitch-Split generalization and pool ergonomics need care. *Addressed by the C.1 infra-first refactor (data-driven registry + unit tests); see §10a.*
 - **CPU-restore regression** — must prove the synth is unaffected (Phase A gate).
 - **Binary size / build time** grow with the CPU + 5 chips.
 - **License confirmation** pending the pinned commit (Phase A gate).
@@ -164,5 +178,6 @@ The engine is deterministic, so this is the project's opportunity to start the a
 
 - **A:** all chips compile + emit sound via direct writes; 6502 passes the test ROM; synth unchanged. 
 - **B:** standard + each-expansion NSF plays correctly from the jukebox UI; subsong nav + metadata + scopes work; RT-safe load verified; manual + automated checks pass.
+- **C.1:** data-driven channel registry + N-channel `VoiceAllocator` land; legacy 2A03+VRC6 allocation is behavior-identical; new Catch2 `VoiceAllocator` suite passes; no new chip audio/params/UI; `NessyAPU` untouched.
 - **C:** each chip playable via MIDI under all three voice modes with per-chip enable; params/macros functional.
 - **D:** the full deck + scope strip ship; manual UI verification by the user (UI rule).
