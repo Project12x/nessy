@@ -24,6 +24,7 @@ Format: [keepachangelog.com](https://keepachangelog.com/en/1.0.0/)
 
 ### Changed
 
+- **VoiceAllocator is now data-driven (Phase C.1)** — channel allocation reads a `ChannelRegistry` (`ChannelDesc` rows: chip group, kind, melodic/percussion role, split tier) instead of hardcoded 8-channel arrays, and runs over an N-channel pool with per-chip-group enables. Behavior is identical for today's 2A03+VRC6 set. The allocator now drives sound through a small `IVoiceSink` interface (implemented by `NessyAPU`), making it unit-testable in isolation; a new Catch2 `VoiceAllocator` suite covers round-robin / pitch-split / unison / steal / group-gating / non-melodic exclusion + an N>8 case. Foundation for adding expansion-chip voices (C.2+).
 - Removed custom `ChannelOscilloscope` — scopes now use the skin-neutral `gm::ui::Oscilloscope` (ghostmoon-oss) drawn by `NessyScope`, fed push-style from the editor's 60 Hz timer
 - APVTS control wiring via juce attachments (`SliderAttachment` / `ComboBoxAttachment`) in the editor
 

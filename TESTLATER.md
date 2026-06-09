@@ -21,6 +21,14 @@ UI items, *interact* (click, right-click, double-click, drag, resize).
 
 ## P0 — Recent changes, unverified
 
+### Phase C.1 — Channel/voice infra refactor (built, 24/24 tests green)
+
+The unit suite proves allocation is behavior-identical, but sound and UI cannot be auto-verified.
+
+- [ ] **By-ear regression (Phase C.1).** Launch the Standalone and confirm the synth sounds and behaves identical to pre-C.1: round-robin / pitch-split / unison play the same channels as before; VRC6 toggle still extends the voice pool from 3 to 6; the arpeggiator still works end-to-end. No new audio behavior is expected — this is a regression check only.
+
+
+
 ### NSF player — Phase-B review fixes (built, tests green, **uncommitted**)
 
 Five fixes from the final Phase-B review. They compile clean and pass CTest
