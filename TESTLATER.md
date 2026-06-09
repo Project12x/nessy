@@ -4,8 +4,8 @@ Nessy has **no automated tests**; every behavior is verified by hand. This doc
 is the running list of what a human still needs to check. Tick a box when
 verified; annotate `FAIL —` inline if it breaks.
 
-**Last updated:** 2026-06-05 (after commits `1ad865d` arp/sweep/portamento and
-`51db06a` idempotent-setter fix).
+**Last updated:** 2026-06-08 (NSF player Phase B complete + final-review fixes).
+Prior: 2026-06-05 (`1ad865d` arp/sweep/portamento, `51db06a` idempotent-setter fix).
 
 **How to test:** launch the Standalone
 (`build\Nessy_artefacts\Release\Standalone\Nessy.exe`) or load the VST3 in a DAW.
@@ -20,6 +20,25 @@ UI items, *interact* (click, right-click, double-click, drag, resize).
 ---
 
 ## P0 — Recent changes, unverified
+
+### NSF player — Phase-B review fixes (built, tests green, **uncommitted**)
+
+Five fixes from the final Phase-B review. They compile clean and pass CTest
+(15/15), but touch audio/UI behaviour so they need a by-hand pass. Branch
+`feat/nsf-multichip`; files `PluginProcessor.h/.cpp`, `NsfPlayerWindow.cpp`.
+Pre-fix build backed up at `releases/2026-06-08_1032/`.
+
+- [ ] **Stuck-note fix — by ear (this one changes audible behaviour).** Hold synth
+  notes, then open the NSF window (EJECT) + LOAD an NSF (or click the cartridge
+  body to switch to NSF mode). Held synth notes should **cut cleanly** (no hung
+  drone); back in synth, notes play **fresh** with no leftover stuck tone.
+- [ ] **Subsong clamp (I2).** The ◄ / ► SONG arrows stop at the first/last song —
+  they must NOT wrap to a garbage track.
+- [ ] **Load-while-scopes-running (C2 data race).** With the window open and scopes
+  moving, LOAD a second NSF → smooth swap, no flicker, no crash.
+- [ ] **FileChooser teardown (UAF) — edge case.** In a DAW, open the window's LOAD
+  dialog then close the plugin window while it's still open → no crash.
+  (SafePointer-guarded; skip if hard to stage.)
 
 ### ⚠️ Known risk found in code review (not yet fixed)
 
@@ -111,6 +130,16 @@ UI items, *interact* (click, right-click, double-click, drag, resize).
 - [ ] VST3 loads in a DAW; new params automatable; no thread-safety glitches under automation
 - [ ] Phase 12: validate as VST3 in Pedalboard3 (MIDI note/CC; CPU < 5% target)
 
+### NSF player (feature added this phase — full regression surface)
+- [ ] LOAD a `.nsf` **and** a `.nsfe` → both parse; title/artist/©/chips populate.
+- [ ] Playback is audible and correct; all 5 channel scopes (P1/P2/TRI/NSE/DMC) move.
+- [ ] ◄ / ► SONG steps subsongs; counter shows n/total.
+- [ ] PLAY / STOP transport freezes + resumes **without restarting** the tune.
+- [ ] Window wears the Front-Loader skin, resizes within limits; all 3 themes apply.
+- [ ] Synth ↔ NSF mode switch is clean both ways (no stuck notes — see P0 fix).
+- [ ] EJECT opens the window; closing it returns to synth.
+- [ ] A real bankswitched / multi-chip NSF (VRC6 etc.) plays correctly start-to-end.
+
 ---
 
 ## P2 — Deeper checks & known issues
@@ -127,6 +156,14 @@ UI items, *interact* (click, right-click, double-click, drag, resize).
 - [ ] CPU usage under full 8-voice unison + macros + arp (target < 5% at 44.1 kHz stereo).
 - [ ] Compiler warnings: C4244 `uint8_t`-from-`int`, and the `juce::ComboBox::label` deprecation seen in the Release build — confirm benign or clean up.
 - [ ] Stress: MIDI all-notes-off / panic clears every channel and the arpeggiator.
+- [ ] **NSF: dynamic expansion-chip scopes** — window shows 5 fixed 2A03 scopes;
+  NSFs using VRC6/VRC7/N163/FDS/5B/MMC5 don't light extra scopes yet (deferred).
+- [ ] **NSF: load-error surfacing** — a failed/malformed NSF load is currently
+  swallowed (`loadNsf` TODO); the window keeps stale metadata. Verify once surfaced.
+- [ ] **NSF: close-button UX (I4)** — closing the window leaves the engine live +
+  `m_nsfPlaying=true`; re-opening via EJECT doesn't resume audio without a reload.
+- [ ] **NSF: `prepareToPlay` re-init (I3)** — re-inits the song on every
+  `prepareToPlay` (host transport start can restart the tune). Confirm acceptable.
 
 ---
 

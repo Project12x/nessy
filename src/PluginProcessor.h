@@ -80,7 +80,13 @@ public:
   // Per-channel scope buffer for the NSF player window (message thread, 60 Hz).
   // Returns nullptr when no NSF engine is active or ch is out of range.
   const float* getNsfScopeBuffer(int ch) const {
-    return m_activeNsf ? m_activeNsf->scopeBuffer(ch) : nullptr;
+    // RT-safe read: m_activeNsf is a unique_ptr mutated on the audio thread, so
+    // dereferencing it here (message thread, 60 Hz) would race the swap. Read the
+    // active engine via the atomic snapshot the audio thread publishes instead.
+    // The pointee is only ever deleted on this (message) thread (retireOldEngine),
+    // so it stays valid for the duration of this call.
+    auto* e = m_activeView.load(std::memory_order_acquire);
+    return e ? e->scopeBuffer(ch) : nullptr;
   }
 
   // Drain the retire slot (call from message thread, e.g. editor timer, to free old engines).
@@ -130,6 +136,17 @@ private:
 
   // Audio-thread-owned active engine. Mutated only inside processBlock().
   std::unique_ptr<nessy::NsfEngine> m_activeNsf;
+
+  // Atomic snapshot of the active engine pointer, published by processBlock()
+  // after each adoption. Lets the message thread read the active engine (for
+  // scopes) without racing the unique_ptr above. The pointee is only deleted on
+  // the message thread (retireOldEngine), never on the audio thread.
+  std::atomic<nessy::NsfEngine*> m_activeView { nullptr };
+
+  // Previous playback mode as last seen by the audio thread (processBlock only;
+  // no atomic needed). Used to detect a synth->NSF transition and release held
+  // synth notes on that edge, so they don't hang when returning to synth mode.
+  int m_prevPlaybackMode { 0 };
 
   // Pre-allocated scratch for mono int16 render (sized in prepareToPlay).
   std::vector<int16_t> m_nsfScratch;

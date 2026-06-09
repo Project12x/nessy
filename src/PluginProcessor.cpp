@@ -233,10 +233,25 @@ void NessyAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
   if (auto* pending = m_pendingNsf.exchange(nullptr, std::memory_order_acquire)) {
     auto* old = m_activeNsf.release();
     m_activeNsf.reset(pending);
+    // Publish the active pointer for the message-thread scope getter (RT-safe read).
+    m_activeView.store(m_activeNsf.get(), std::memory_order_release);
     if (old) {
       // Deposit old engine for message-thread GC. Safe: slot was drained by
       // loadNsf()->retireOldEngine() before this publish, so no engine is lost.
       m_retireNsf.store(old, std::memory_order_release);
+    }
+  }
+
+  // Release held synth notes on a synth->NSF transition so they don't hang: the
+  // synth path is skipped entirely in NSF mode, dropping any note-offs that
+  // arrive while an NSF plays. Audio-thread only; allNotesOff() is RT-safe
+  // (register writes, no allocation or locking).
+  {
+    const int mode = m_playbackMode.load(std::memory_order_relaxed);
+    if (mode != m_prevPlaybackMode) {
+      if (mode == 1)
+        voiceAllocator->allNotesOff();
+      m_prevPlaybackMode = mode;
     }
   }
 
@@ -260,16 +275,18 @@ void NessyAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         rightChannel[i] = 0.0f;
       }
     } else {
-      // Grow scratch if the host raised block size between prepareToPlay calls.
-      // Steady-state: no realloc (sized in prepareToPlay).
-      if ((int)m_nsfScratch.size() < numSamples)
-        m_nsfScratch.assign((size_t)numSamples, 0);
-
-      m_activeNsf->renderSamples(m_nsfScratch.data(), numSamples, currentSampleRate);
-
-      // Mono int16 -> stereo float (see NsfMix.h for unit-tested implementation).
+      // Render in chunks bounded by the pre-allocated scratch so an oversized
+      // host block never allocates on the audio thread (RT-safe). cap >= 1
+      // (m_nsfScratch is sized in prepareToPlay).
+      const int cap = (int)m_nsfScratch.size();
       auto* R = buffer.getNumChannels() > 1 ? rightChannel : leftChannel;
-      nsfMonoToStereo(m_nsfScratch.data(), leftChannel, R, numSamples);
+      for (int done = 0; done < numSamples;) {
+        const int n = juce::jmin(cap, numSamples - done);
+        m_activeNsf->renderSamples(m_nsfScratch.data(), n, currentSampleRate);
+        // Mono int16 -> stereo float (see NsfMix.h for unit-tested implementation).
+        nsfMonoToStereo(m_nsfScratch.data(), leftChannel + done, R + done, n);
+        done += n;
+      }
     }
   } else {
     // === SYNTH PATH — VERBATIM (unchanged) ===
@@ -480,7 +497,10 @@ void NessyAudioProcessor::loadNsf(const uint8_t* data, size_t size, int song) {
 
 void NessyAudioProcessor::selectNsfSong(int song) {
   if (m_nsfData.empty()) return;
+  // Clamp to the valid subsong range so an out-of-range index never reaches the
+  // 6502 INIT routine (callers should not have to guarantee this invariant).
   if (song < 0) song = 0;
+  if (m_nsfSongCount > 0 && song >= m_nsfSongCount) song = m_nsfSongCount - 1;
   // Rebuild and republish the engine at the new song index.
   loadNsf(m_nsfData.data(), m_nsfData.size(), song);
 }

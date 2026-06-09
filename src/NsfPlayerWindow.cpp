@@ -287,16 +287,22 @@ void NsfPlayerView::loadNsfFile() {
       "Load NSF file", juce::File(), "*.nsf;*.nsfe");
   auto openFlags = juce::FileBrowserComponent::openMode
                | juce::FileBrowserComponent::canSelectFiles;
-  m_chooser->launchAsync(openFlags, [this](const juce::FileChooser& fc) {
+  // Guard against the view being destroyed while the dialog is open (e.g. the
+  // host closes the plugin window): SafePointer auto-nulls on deletion, so the
+  // async callback never touches a dangling 'this'.
+  juce::Component::SafePointer<NsfPlayerView> safe(this);
+  m_chooser->launchAsync(openFlags, [safe](const juce::FileChooser& fc) {
+    if (safe == nullptr)
+      return;
     auto file = fc.getResult();
     if (file.existsAsFile()) {
       juce::MemoryBlock mb;
       if (file.loadFileAsData(mb)) {
-        m_proc.loadNsf(static_cast<const uint8_t*>(mb.getData()),
-                       mb.getSize(), 0);
+        safe->m_proc.loadNsf(static_cast<const uint8_t*>(mb.getData()),
+                             mb.getSize(), 0);
       }
     }
-    repaint();
+    safe->repaint();
   });
 }
 

@@ -29,6 +29,12 @@ Format: [keepachangelog.com](https://keepachangelog.com/en/1.0.0/)
 
 ### Fixed
 
+- **NSF player — real-time-safety + lifetime hardening (final Phase-B review).** Built and 15/15 tests green; the audio/UI behaviour changes are pending manual verification (tracked in `TESTLATER.md`).
+  - Scope-buffer reads are race-free: the audio thread publishes the active engine into an `atomic<NsfEngine*>` that the message-thread scope getter reads, instead of dereferencing the `unique_ptr` that is mutated on the audio thread (C2).
+  - Held synth notes no longer hang across a synth→NSF switch — they are released on the transition edge (the synth path is skipped entirely in NSF mode, so note-offs were being dropped).
+  - No audio-thread allocation for oversized host blocks: the NSF render runs in pre-sized scratch chunks instead of reallocating in `processBlock` (I1).
+  - `selectNsfSong` clamps to the valid subsong range so an out-of-range index can't reach the 6502 INIT routine (I2).
+  - The NSF window LOAD dialog is use-after-free safe if the host tears down the plugin window while the dialog is open (`Component::SafePointer` guard).
 - **Hardware macros froze on sustained notes** — `processBlock` re-syncs macro presets every audio block, and `MacroEngine::setPreset` unconditionally cleared the channel's `active` flag (and reallocated the sequence vectors on the audio thread). Held-note macros (vibrato, vol decay, duty sweep, stab, macro-arpeggio) stopped advancing after the note-on block. Root cause: a per-block destructive setter. `setPreset` is now idempotent — it only rebuilds on an actual preset change.
 - **Arpeggiator re-sequenced every block** — same root cause: `setArpPattern`/`setArpOctaves` ran `rebuildSequence()` every block, which in Random mode re-shuffled ~90×/sec. The arp setters are now idempotent (no-op when unchanged).
 
