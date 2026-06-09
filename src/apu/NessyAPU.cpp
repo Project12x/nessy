@@ -400,8 +400,14 @@ void NessyAPU::noteOff(int channel) {
     break;
 
   // MMC5 note off
-  case MMC5_PULSE1: m_mmc5->Write(0x5000, 0x30); break;
-  case MMC5_PULSE2: m_mmc5->Write(0x5004, 0x30); break;
+  case MMC5_PULSE1:
+    m_mmc5->Write(0x5015, 0x02); // disable square 0, keep square 1 enabled
+    m_mmc5->Write(0x5000, 0x30);
+    break;
+  case MMC5_PULSE2:
+    m_mmc5->Write(0x5015, 0x01); // disable square 1, keep square 0 enabled
+    m_mmc5->Write(0x5004, 0x30);
+    break;
   }
 }
 
