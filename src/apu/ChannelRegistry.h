@@ -6,7 +6,6 @@
 // as rows here when their audio lands (C.2+). GPL-3.0.
 
 #include <array>
-#include <cstddef>
 
 namespace nessy {
 

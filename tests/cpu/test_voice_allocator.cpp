@@ -32,4 +32,9 @@ TEST_CASE("channel registry has the expected current layout", "[voicealloc][regi
   // Percussion rows carry no split tier.
   REQUIRE(kChannels[3].splitTier == SplitTier::None);  // Noise
   REQUIRE(kChannels[4].splitTier == SplitTier::None);  // DMC
+
+  // Pin the id <-> row-index mapping the allocator relies on (m_channels[pos].id
+  // is written straight into NessyAPU note calls in Task 3).
+  for (int i = 0; i < static_cast<int>(kChannels.size()); ++i)
+    REQUIRE(kChannels[i].id == i);
 }
