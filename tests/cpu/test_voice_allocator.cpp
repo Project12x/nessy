@@ -14,8 +14,8 @@ static int countMelodic() {
 }
 
 TEST_CASE("channel registry has the expected current layout", "[voicealloc][registry]") {
-  REQUIRE(kChannels.size() == 8);
-  REQUIRE(countMelodic() == 6);                     // P1 P2 Tri VRC6x3
+  REQUIRE(kChannels.size() == 13);
+  REQUIRE(countMelodic() == 11);                    // 6 prior + MMC5x2 + 5Bx3
 
   // Core 2A03 has 3 melodic (P1,P2,Tri) + 2 percussion (Noise,DMC).
   int core = 0, corePerc = 0;
@@ -35,6 +35,16 @@ TEST_CASE("channel registry has the expected current layout", "[voicealloc][regi
   // Percussion rows carry no split tier.
   REQUIRE(kChannels[3].splitTier == SplitTier::None);  // Noise
   REQUIRE(kChannels[4].splitTier == SplitTier::None);  // DMC
+
+  // MMC5 group: 2 melodic squares at ids 8,9.
+  REQUIRE(kChannels[8].group == ChipGroup::MMC5);
+  REQUIRE(kChannels[8].kind  == ChannelKind::Square);
+  REQUIRE(kChannels[8].role  == ChannelRole::Melodic);
+  REQUIRE(kChannels[9].group == ChipGroup::MMC5);
+  // FME7 group: 3 melodic squares at ids 10,11,12.
+  REQUIRE(kChannels[10].group == ChipGroup::FME7);
+  REQUIRE(kChannels[12].group == ChipGroup::FME7);
+  REQUIRE(kChannels[11].splitTier == SplitTier::Lead);
 
   // Pin the id <-> row-index mapping the allocator relies on (m_channels[pos].id
   // is written straight into NessyAPU note calls in Task 3).

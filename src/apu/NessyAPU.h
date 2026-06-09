@@ -34,7 +34,14 @@ public:
     VRC6_PULSE1 = 5,
     VRC6_PULSE2 = 6,
     VRC6_SAW = 7,
-    NUM_CHANNELS = 8
+    // MMC5 expansion (8-9) — 2A03-style squares
+    MMC5_PULSE1 = 8,
+    MMC5_PULSE2 = 9,
+    // Sunsoft 5B / FME7 expansion (10-12) — PSG square tones
+    FME7_A = 10,
+    FME7_B = 11,
+    FME7_C = 12,
+    NUM_CHANNELS = 13
   };
 
   // Duty cycle options for pulse channels
@@ -148,11 +155,13 @@ private:
   double m_clocksPerSample = 0.0;
   double m_clockAccumulator = 0.0;
 
-  // Channel state
-  bool m_channelEnabled[NUM_CHANNELS] = {true,  true,  true,  true,
-                                         false, false, false, false};
-  int m_currentNote[NUM_CHANNELS] = {-1, -1, -1, -1, -1, -1, -1, -1};
-  float m_velocity[NUM_CHANNELS] = {0, 0, 0, 0, 0, 0, 0, 0};
+  // Channel state (Core2A03 base on; all expansion groups off by default)
+  bool m_channelEnabled[NUM_CHANNELS] = {true,  true,  true,  true,  false,
+                                         false, false, false, false, false,
+                                         false, false, false};
+  int  m_currentNote[NUM_CHANNELS]   = {-1, -1, -1, -1, -1, -1, -1,
+                                        -1, -1, -1, -1, -1, -1};
+  float m_velocity[NUM_CHANNELS]     = {0}; // zero-init all 13
   DutyCycle m_pulseDuty[2] = {DUTY_50, DUTY_50};
   int m_vrc6PulseDuty[2] = {4, 4}; // Default 50% (8 levels: 0-7)
   bool m_noiseShortMode = false;

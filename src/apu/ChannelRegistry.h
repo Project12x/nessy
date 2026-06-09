@@ -27,18 +27,24 @@ struct ChannelDesc {
   SplitTier   splitTier;
 };
 
-// Production channel set (C.1 = today's 2A03 + VRC6 layout). Row order matters:
-// the allocator iterates these in order, so this order reproduces the legacy
-// channel priority {0,1,2,5,6,7}.
-inline constexpr std::array<ChannelDesc, 8> kChannels = {{
-    {0, ChipGroup::Core2A03, ChannelKind::Square,   ChannelRole::Melodic,    SplitTier::Lead},
-    {1, ChipGroup::Core2A03, ChannelKind::Square,   ChannelRole::Melodic,    SplitTier::Lead},
-    {2, ChipGroup::Core2A03, ChannelKind::Triangle, ChannelRole::Melodic,    SplitTier::Bass},
-    {3, ChipGroup::Core2A03, ChannelKind::Noise,    ChannelRole::Percussion, SplitTier::None},
-    {4, ChipGroup::Core2A03, ChannelKind::Dpcm,     ChannelRole::Percussion, SplitTier::None},
-    {5, ChipGroup::VRC6,     ChannelKind::Square,   ChannelRole::Melodic,    SplitTier::Lead},
-    {6, ChipGroup::VRC6,     ChannelKind::Square,   ChannelRole::Melodic,    SplitTier::Lead},
-    {7, ChipGroup::VRC6,     ChannelKind::Saw,      ChannelRole::Melodic,    SplitTier::Bass},
+// Production channel set (C.2 = 2A03 + VRC6 + MMC5 + FME7/5B). Row order
+// matters: the allocator iterates these in order, so this order reproduces the
+// legacy channel priority {0,1,2,5,6,7}. MMC5 (8-9) and FME7 (10-12) groups
+// default disabled; audio lands in Phase C.2 Tasks 2-4.
+inline constexpr std::array<ChannelDesc, 13> kChannels = {{
+    {0,  ChipGroup::Core2A03, ChannelKind::Square,   ChannelRole::Melodic,    SplitTier::Lead},
+    {1,  ChipGroup::Core2A03, ChannelKind::Square,   ChannelRole::Melodic,    SplitTier::Lead},
+    {2,  ChipGroup::Core2A03, ChannelKind::Triangle, ChannelRole::Melodic,    SplitTier::Bass},
+    {3,  ChipGroup::Core2A03, ChannelKind::Noise,    ChannelRole::Percussion, SplitTier::None},
+    {4,  ChipGroup::Core2A03, ChannelKind::Dpcm,     ChannelRole::Percussion, SplitTier::None},
+    {5,  ChipGroup::VRC6,     ChannelKind::Square,   ChannelRole::Melodic,    SplitTier::Lead},
+    {6,  ChipGroup::VRC6,     ChannelKind::Square,   ChannelRole::Melodic,    SplitTier::Lead},
+    {7,  ChipGroup::VRC6,     ChannelKind::Saw,      ChannelRole::Melodic,    SplitTier::Bass},
+    {8,  ChipGroup::MMC5,     ChannelKind::Square,   ChannelRole::Melodic,    SplitTier::Lead},
+    {9,  ChipGroup::MMC5,     ChannelKind::Square,   ChannelRole::Melodic,    SplitTier::Lead},
+    {10, ChipGroup::FME7,     ChannelKind::Square,   ChannelRole::Melodic,    SplitTier::Lead},
+    {11, ChipGroup::FME7,     ChannelKind::Square,   ChannelRole::Melodic,    SplitTier::Lead},
+    {12, ChipGroup::FME7,     ChannelKind::Square,   ChannelRole::Melodic,    SplitTier::Lead},
 }};
 
 } // namespace nessy

@@ -79,7 +79,7 @@ public:
   // When standalone arpeggiator is active, skip macro arpeggio sequences
   void setArpeggiatorActive(bool active) { m_arpeggiatorActive = active; }
 
-  static constexpr int NUM_CHANNELS = 8;
+  static constexpr int NUM_CHANNELS = 13;
 
 private:
   struct ChannelState {
