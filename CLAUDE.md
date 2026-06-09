@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Nessy is a VST3 & Standalone audio plugin emulating the Ricoh 2A03 APU (NES sound processor) with Konami VRC6 expansion support. 8-channel NES synthesizer with hardware-authentic NTSC timing.
+Nessy is a VST3 & Standalone audio plugin emulating the Ricoh 2A03 APU (NES sound processor) with expansion-chip support (Konami VRC6, MMC5, Sunsoft 5B). A **13-channel** NES synthesizer with hardware-authentic NTSC timing, **and** an NSF/NSFe player that loads and plays NES music files in a themed window. The FDS, Namco 163, and VRC7 cores are also vendored (available to the NSF player; their synth voices are upcoming — Phase C.3/C.4).
 
 ## Build Commands
 
@@ -23,7 +23,7 @@ cmake --build build --config Release --target Nessy_Standalone
 - Standalone: `build\Nessy_artefacts\Release\Standalone\Nessy.exe`
 - VST3: auto-copied to system VST3 folder (`%COMMONFILES%\VST3`)
 
-There are no automated tests. All testing is manual via the Standalone exe or DAW.
+Automated tests: a Catch2 + CTest suite (`nessy_tests`, ~26 tests) covers the 6502 CPU (Klaus Dormann functional test), the expansion-chip cores, the NSF engine, and the `VoiceAllocator`. Build + run with `cmake --build build --config Release --target nessy_tests` then `ctest --test-dir build -C Release --output-on-failure`. Audio and UI behaviour still require manual verification (Standalone exe / DAW) — tracked in `TESTLATER.md`.
 
 ## Architecture
 
@@ -31,14 +31,20 @@ There are no automated tests. All testing is manual via the Standalone exe or DA
 MIDI → VoiceAllocator → NessyAPU → AudioProcessor → Editor
 ```
 
-**VoiceAllocator** maps MIDI notes to NES channels using one of three modes: Round-Robin, Pitch-Split (low notes → Triangle/Saw, high notes → Pulses), or Unison (all enabled channels play same note).
+The processor runs in one of two modes (`playbackMode`): the **Synth** path (MIDI-driven) or the **NSF player** path (CPU-driven). See `ARCHITECTURE.md` for the full design.
 
-**NessyAPU** owns three NSFPlay emulation cores plus Blip_Buffer for band-limited resampling:
+**VoiceAllocator** is data-driven: a `ChannelRegistry` (`src/apu/ChannelRegistry.h`, a `constexpr` table of `ChannelDesc` rows) defines the channel set, and the allocator routes MIDI notes over an **N-channel pool** (per-chip-group enables) using one of three modes — Round-Robin, Pitch-Split (low → bass-tier, high → lead-tier), or Unison. It drives sound through the `IVoiceSink` interface that `NessyAPU` implements, so it is decoupled and unit-tested.
+
+**NessyAPU** owns five NSFPlay emulation cores (13 channels total):
 - `xgm::NES_APU` — Pulse 1 & 2 (4 duty cycles, 4-bit volume, hardware sweep)
 - `xgm::NES_DMC` — Triangle, Noise, DMC (6 factory DPCM drum samples via `NessyMemory`)
 - `xgm::NES_VRC6` — VRC6 Pulse 1/2 (8 duty cycles) and Sawtooth (6-bit accumulator)
+- `xgm::NES_MMC5` — MMC5 Pulse 1 & 2 (2A03-style, 4 duty cycles)
+- `xgm::NES_FME7` — Sunsoft 5B PSG square tones A/B/C
 
-NSFPlay cores clock at 1,789,772.7 Hz (NTSC). Blip_Buffer resamples to host rate (~40.6 CPU clocks per 44.1 kHz sample). Channels mix in three groups (Pulse, TND, VRC6) with non-linear mixing for the TND group.
+NSFPlay cores clock at 1,789,772.7 Hz (NTSC). `NessyAPU::process()` advances the cores per host sample and **point-samples** each core's `out[]`/`Render()`: the 2A03 uses the NESdev non-linear pulse + TND mix; VRC6/MMC5/5B are summed linearly. **Blip_Buffer is configured but NOT used in the synth output path** — band-limiting is a known open item (see `TESTLATER.md`); do not assume Blip resampling.
+
+**NsfEngine** (`src/nsf/NsfEngine`, PIMPL) is the NSF player: it parses NSF/NSFe and runs a real 6502 (`xgm::NES_CPU`) over the ripped song's INIT/PLAY against the NSFPlay chip bus. Loading is RT-safe (message-thread build → atomic engine swap → timer retire); `src/NsfPlayerWindow` is the themed loader/transport/scope window (opened from the editor's EJECT chip).
 
 **MacroEngine** runs a 60 Hz register sequencer with 8 preset types (Vibrato, Decay, Arpeggio Major/Minor, Duty Sweep, Stab, Custom). One instance per melodic channel. Ticks every ~29,830 CPU clocks (one NES frame).
 
@@ -53,13 +59,17 @@ NSFPlay cores clock at 1,789,772.7 Hz (NTSC). Blip_Buffer resamples to host rate
 | `src/PluginProcessor.h/cpp` | JUCE AudioProcessor, APVTS parameter tree, DSP chain |
 | `src/PluginEditor.h/cpp` | NES Front-Loader UI: juce:: controls + themes + scopes |
 | `src/NessyUI.h` | `nessy::NessyLookAndFeel` (NES skin) + `nessy::NessyScope` |
-| `src/apu/NessyAPU.h/cpp` | Main APU wrapper; register writes, mixing, Blip_Buffer |
-| `src/apu/VoiceAllocator.h/cpp` | MIDI→channel demuxing, 3 allocation modes |
-| `src/apu/MacroEngine.h/cpp` | 60 Hz hardware macro sequencer |
+| `src/apu/NessyAPU.h/cpp` | Main APU wrapper; 5 chip cores, register writes, point-sampled mixing (13 channels); implements `IVoiceSink` |
+| `src/apu/VoiceAllocator.h/cpp` | Registry-driven, N-channel MIDI→channel routing; 3 allocation modes |
+| `src/apu/ChannelRegistry.h` | `constexpr` `ChannelDesc` table — single source of truth for the channel set |
+| `src/apu/IVoiceSink.h` | 3-method boundary decoupling `VoiceAllocator` from `NessyAPU` |
+| `src/apu/MacroEngine.h/cpp` | 60 Hz hardware macro sequencer (all 13 channels) |
 | `src/apu/Arpeggiator.h/cpp` | 60 Hz held-note arpeggiator |
 | `src/apu/NessyMemory.h` | Virtual NES address space + 6 factory DPCM samples |
-| `src/apu/nsfplay/` | NSFPlay emulation cores — treat as read-only vendor code |
-| `src/apu/blip_buffer/` | Blargg Blip_Buffer — treat as read-only vendor code |
+| `src/nsf/NsfEngine.h/cpp` | NSF/NSFe player engine (PIMPL): parse + 6502 INIT/PLAY + chip bus + scopes |
+| `src/NsfPlayerWindow.h/cpp` | Themed floating NSF-player window (load/metadata/transport/subsong/scopes) |
+| `src/apu/nsfplay/` | NSFPlay emulation cores + km6502 CPU — treat as read-only vendor code |
+| `src/apu/blip_buffer/` | Blargg Blip_Buffer — vendored (configured but not in the synth output path) |
 
 ## UI Framework
 
@@ -69,7 +79,7 @@ Controls: `juce::Slider` (volume dial, split/glide) + `juce::ComboBox` (duty/mac
 
 ## Parameters (APVTS)
 
-Parameters are declared in `PluginProcessor.cpp` and accessed via `getAPVTS()`. Key IDs: `pulse1Enable`, `pulse2Enable`, `triangleEnable`, `noiseEnable`, `vrc6Enable`, `pulse1Duty`, `pulse2Duty`, `vrc6Pulse1Duty`, `vrc6Pulse2Duty`, `noiseMode`, `voiceMode`, `splitPoint`, `masterVolume`, plus per-channel macro preset selectors, sweep configs (enable/direction/rate/shift for Pulse 1 & 2), arpeggiator (enabled/pattern/octaves), and portamento (enabled/speed).
+Parameters are declared in `PluginProcessor.cpp` and accessed via `getAPVTS()`. Key IDs: channel enables `pulse1Enable`/`pulse2Enable`/`triangleEnable`/`noiseEnable`/`dmcEnable`; expansion enables `vrc6Enable`/`mmc5Enable`/`sunsoft5bEnable`; duties `pulse1Duty`/`pulse2Duty`/`vrc6Pulse1Duty`/`vrc6Pulse2Duty`/`mmc5Pulse1Duty`/`mmc5Pulse2Duty`; `noiseMode`, `voiceMode`, `splitPoint`, `masterVolume`; plus per-channel macro-preset selectors (all 13 channels), sweep configs (enable/direction/rate/shift for Pulse 1 & 2), arpeggiator (enabled/pattern/octaves), and portamento (enabled/speed). (MMC5/5B enables currently have no dedicated UI control — Phase D; reach them via a host's generic parameter view.)
 
 ## Dependencies
 
@@ -82,4 +92,6 @@ C++20 required. Windows + Visual Studio 2022 is the tested platform.
 
 ## Current Phase
 
-Phase 8 (Hardware Macros) complete and extended: the MacroEngine 60 Hz sequencer with 8 presets, a standalone Arpeggiator (Up/Down/UpDown/Random, 1–4 octaves), manual hardware pitch sweep (Pulse 1 & 2), and portamento/glide are all implemented and parameter-wired through `PluginProcessor::processBlock`. Remaining: the full editable macro-grid UI (Phase 8) and MIDI pitch-bend → sweep trigger (Phase 9).
+**Phase C.2 complete** (on branch `feat/nsf-multichip`). Nessy is now a 13-channel synth **and** an NSF player. Done: the earlier synth work (MacroEngine 8-preset sequencer, standalone Arpeggiator, manual Pulse 1/2 sweep, portamento); **Phase A** (real 6502 restored + 5 expansion chips vendored + Catch2 suite); **Phase B** (NSF player — `NsfEngine`, `playbackMode`, themed `NsfPlayerWindow`); **Phase C.1** (data-driven N-channel `VoiceAllocator` — `ChannelRegistry` + `IVoiceSink`); **Phase C.2** (MMC5 + Sunsoft 5B as MIDI-playable synth voices at full macro/portamento parity).
+
+Upcoming: **C.3** (FDS + Namco 163 wavetable voices), **C.4** (VRC7 FM + patch model), **Phase D** (multi-chip synth UI + all-channels scope strip). See `ROADMAP.md`/`STATE.md` for detail and `TESTLATER.md` for pending by-ear checks (including carried-over items: editable macro-grid UI, MIDI pitch-bend → sweep, and the per-block pulse-duty macro stomp on 2A03/MMC5).
