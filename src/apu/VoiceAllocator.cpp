@@ -14,6 +14,8 @@ VoiceAllocator::VoiceAllocator() {
 }
 
 void VoiceAllocator::setChannels(const ChannelDesc *channels, std::size_t count) {
+  // Precondition: call only when idle. This wipes all voice state without sending
+  // note-offs, so any held notes would hang on the sink; callers must allNotesOff() first.
   m_channels = channels;
   m_count = count;
   m_voices.assign(count, Voice{});
@@ -75,6 +77,9 @@ int VoiceAllocator::findOldestInTier(SplitTier tier) const {
 }
 
 int VoiceAllocator::findPositionForPitch(int noteNumber) const {
+  // Bass tier is never empty in production: Core2A03 Triangle is always enabled,
+  // so low notes always find a target. A future registry that disables all bass
+  // channels would silently drop low notes here.
   const SplitTier tier = (noteNumber < m_splitPoint) ? SplitTier::Bass : SplitTier::Lead;
   int pos = findFreeInTier(tier);
   if (pos < 0) pos = findOldestInTier(tier);

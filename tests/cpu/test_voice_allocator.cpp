@@ -155,3 +155,32 @@ TEST_CASE("allocator generalizes past 8 channels (N=10)", "[voicealloc]") {
   REQUIRE(sink.offs == std::vector<int>{0});
   REQUIRE(sink.onChannels() == std::vector<int>{0});
 }
+
+TEST_CASE("pitch-split steals the oldest channel within a full tier", "[voicealloc]") {
+  MockVoiceSink sink;
+  VoiceAllocator va = makeCoreAllocator(sink);
+  va.setVRC6Enabled(true);
+  va.setMode(VoiceAllocator::Mode::PITCH_SPLIT);
+  va.setSplitPoint(60);
+
+  va.noteOn(0, 48, 1.0f);   // low -> bass free: Tri (id 2)  [oldest]
+  va.noteOn(0, 50, 1.0f);   // low -> bass free: VRC6 Saw (id 7)
+  sink.clear();
+  va.noteOn(0, 52, 1.0f);   // low -> bass full -> steal oldest bass (id 2)
+  REQUIRE(sink.offs == std::vector<int>{2});
+  REQUIRE(sink.lastOnChannelFor(52) == 2);
+}
+
+TEST_CASE("noteOff releases the channel holding that note", "[voicealloc]") {
+  MockVoiceSink sink;
+  VoiceAllocator va = makeCoreAllocator(sink);
+  va.setMode(VoiceAllocator::Mode::ROUND_ROBIN);
+
+  va.noteOn(0, 60, 1.0f);   // id 0
+  va.noteOn(0, 62, 1.0f);   // id 1
+  sink.clear();
+  va.noteOff(0, 60);        // must release id 0 only
+  REQUIRE(sink.offs == std::vector<int>{0});
+  REQUIRE(va.getChannelForNote(60) == -1);
+  REQUIRE(va.getChannelForNote(62) == 1);
+}
