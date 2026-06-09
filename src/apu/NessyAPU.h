@@ -14,6 +14,7 @@ class NES_CPU;
 class NES_APU;
 class NES_DMC;
 class NES_VRC6;
+class NES_MMC5;
 } // namespace xgm
 class Arpeggiator;
 class Blip_Buffer;
@@ -82,6 +83,10 @@ public:
   void setVRC6Enabled(bool enabled);
   void setVRC6PulseDuty(int pulseChannel, int duty); // 0-7 (8 levels)
 
+  // MMC5-specific configuration
+  void setMmc5Enabled(bool enabled);
+  void setMmc5PulseDuty(int pulseChannel, DutyCycle duty); // 0-3
+
   // Get channel frequency for visualization
   double getChannelFrequency(int channel) const;
 
@@ -133,6 +138,7 @@ private:
   std::unique_ptr<xgm::NES_APU> m_apu1;  // Pulse channels
   std::unique_ptr<xgm::NES_DMC> m_apu2;  // Triangle, Noise, DMC
   std::unique_ptr<xgm::NES_VRC6> m_vrc6; // VRC6 expansion
+  std::unique_ptr<xgm::NES_MMC5> m_mmc5; // MMC5 expansion (2 squares)
 
   // Blip_Buffer for bandlimited synthesis
   std::unique_ptr<Blip_Buffer> m_blipBuffer;
@@ -166,6 +172,8 @@ private:
   int m_vrc6PulseDuty[2] = {4, 4}; // Default 50% (8 levels: 0-7)
   bool m_noiseShortMode = false;
   bool m_vrc6Enabled = false;
+  bool m_mmc5Enabled = false;
+  DutyCycle m_mmc5PulseDuty[2] = {DUTY_50, DUTY_50};
 
   // Hardware Sweep configuration
   struct SweepConfig {

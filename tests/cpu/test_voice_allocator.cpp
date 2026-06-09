@@ -181,6 +181,18 @@ TEST_CASE("pitch-split steals the oldest channel within a full tier", "[voiceall
   REQUIRE(sink.lastOnChannelFor(52) == 2);
 }
 
+TEST_CASE("enabling the MMC5 group adds its channels to the pool", "[voicealloc]") {
+  MockVoiceSink sink;
+  VoiceAllocator va;
+  va.setChannels(nessy::kChannels.data(), nessy::kChannels.size());
+  va.setAPU(&sink);
+  va.setGroupEnabled(nessy::ChipGroup::MMC5, true);   // Core2A03 (0,1,2) + MMC5 (8,9)
+  va.setMode(VoiceAllocator::Mode::ROUND_ROBIN);
+
+  for (int n = 60; n < 65; ++n) va.noteOn(0, n, 1.0f); // 5 notes -> 0,1,2,8,9
+  REQUIRE(sink.onChannels() == std::vector<int>{0, 1, 2, 8, 9});
+}
+
 TEST_CASE("noteOff releases the channel holding that note", "[voicealloc]") {
   MockVoiceSink sink;
   VoiceAllocator va = makeCoreAllocator(sink);

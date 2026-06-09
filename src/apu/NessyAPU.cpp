@@ -9,6 +9,7 @@
 #include "nsfplay/xgm/devices/Sound/nes_apu.h"
 #include "nsfplay/xgm/devices/Sound/nes_dmc.h"
 #include "nsfplay/xgm/devices/Sound/nes_vrc6.h"
+#include "nsfplay/xgm/devices/Sound/nes_mmc5.h"
 
 // km6502 (via nes_cpu.h) defines short calling-convention macros that leak
 // into JUCE headers and cause C2059 syntax errors.  Undefine them here,
@@ -55,6 +56,7 @@ NessyAPU::NessyAPU() {
   // behaviour-neutral for the synth; it only prevents a null-deref crash.
   m_apu2->SetCPU(m_cpu.get());
   m_vrc6        = std::make_unique<VRC6Exposed>();
+  m_mmc5        = std::make_unique<xgm::NES_MMC5>();
   m_blipBuffer  = std::make_unique<Blip_Buffer>();
   m_memory      = std::make_unique<NessyMemory>();
   m_macroEngine = std::make_unique<MacroEngine>();
@@ -88,6 +90,10 @@ void NessyAPU::initialize(double sampleRate) {
   m_vrc6->SetClock(m_clockRate);
   m_vrc6->SetRate(m_sampleRate);
 
+  // Configure MMC5
+  m_mmc5->SetClock(m_clockRate);
+  m_mmc5->SetRate(m_sampleRate);
+
   // Disable nondeterministic behavior
   m_apu2->SetOption(xgm::NES_DMC::OPT_RANDOMIZE_TRI, 0);
   m_apu2->SetOption(xgm::NES_DMC::OPT_RANDOMIZE_NOISE, 0);
@@ -99,6 +105,7 @@ void NessyAPU::reset() {
   m_apu1->Reset();
   m_apu2->Reset();
   m_vrc6->Reset();
+  m_mmc5->Reset();
   m_blipBuffer->clear();
   m_clockAccumulator = 0.0;
 
@@ -184,6 +191,14 @@ int NessyAPU::process(float *leftOutput, float *rightOutput, int numSamples) {
       mixed += static_cast<float>(bufferVRC6[0]) / 65536.0f;
     }
 
+    if (m_mmc5Enabled) {
+      int32_t bufferMMC5[2] = {0};
+      m_mmc5->Render(bufferMMC5);
+      // MMC5 squares share the 2A03 pulse level; start at the VRC6 scale and
+      // tune by ear (see TESTLATER). 65536 is the starting divisor.
+      mixed += static_cast<float>(bufferMMC5[0]) / 65536.0f;
+    }
+
     float finalSample = juce::jlimit(-1.0f, 1.0f, mixed);
     leftOutput[samplesGenerated] = finalSample;
     rightOutput[samplesGenerated] = finalSample;
@@ -200,6 +215,11 @@ void NessyAPU::clockAPU(int cpuClocks) {
 
   if (m_vrc6Enabled)
     m_vrc6->Tick(cpuClocks);
+
+  if (m_mmc5Enabled) {
+    m_mmc5->TickFrameSequence(cpuClocks); // MMC5 has its own length/env sequencer
+    m_mmc5->Tick(cpuClocks);
+  }
 
   // Macro engine + arpeggiator: fire at ~60Hz (one NES frame)
   m_macroClockAccumulator += cpuClocks;
@@ -322,6 +342,24 @@ void NessyAPU::noteOn(int channel, int midiNote, float velocity) {
     m_vrc6->Write(0xB002, 0x80 | ((period >> 8) & 0x0F));
     break;
   }
+
+  // MMC5 expansion channels
+  case MMC5_PULSE1: {
+    m_mmc5->Write(0x5015, 0x03); // enable both MMC5 squares
+    uint8_t duty = static_cast<uint8_t>(m_mmc5PulseDuty[0]) << 6;
+    m_mmc5->Write(0x5000, duty | 0x30 | volume);
+    m_mmc5->Write(0x5002, period & 0xFF);
+    m_mmc5->Write(0x5003, ((period >> 8) & 0x07) | 0xF8);
+    break;
+  }
+  case MMC5_PULSE2: {
+    m_mmc5->Write(0x5015, 0x03);
+    uint8_t duty = static_cast<uint8_t>(m_mmc5PulseDuty[1]) << 6;
+    m_mmc5->Write(0x5004, duty | 0x30 | volume);
+    m_mmc5->Write(0x5006, period & 0xFF);
+    m_mmc5->Write(0x5007, ((period >> 8) & 0x07) | 0xF8);
+    break;
+  }
   }
 }
 
@@ -360,6 +398,10 @@ void NessyAPU::noteOff(int channel) {
   case VRC6_SAW:
     m_vrc6->Write(0xB002, 0x00);
     break;
+
+  // MMC5 note off
+  case MMC5_PULSE1: m_mmc5->Write(0x5000, 0x30); break;
+  case MMC5_PULSE2: m_mmc5->Write(0x5004, 0x30); break;
   }
 }
 
@@ -423,6 +465,28 @@ void NessyAPU::setVRC6Enabled(bool enabled) {
     m_vrc6->Write(0x9002, 0x00);
     m_vrc6->Write(0xA002, 0x00);
     m_vrc6->Write(0xB002, 0x00);
+  }
+}
+
+void NessyAPU::setMmc5Enabled(bool enabled) {
+  m_mmc5Enabled = enabled;
+  m_channelEnabled[MMC5_PULSE1] = enabled;
+  m_channelEnabled[MMC5_PULSE2] = enabled;
+  if (!enabled) {
+    m_mmc5->Write(0x5000, 0x30);
+    m_mmc5->Write(0x5004, 0x30);
+    m_mmc5->Write(0x5015, 0x00);
+  }
+}
+
+void NessyAPU::setMmc5PulseDuty(int pulseChannel, DutyCycle duty) {
+  if (pulseChannel < 0 || pulseChannel > 1) return;
+  m_mmc5PulseDuty[pulseChannel] = duty;
+  int channel = (pulseChannel == 0) ? MMC5_PULSE1 : MMC5_PULSE2;
+  if (m_currentNote[channel] >= 0) {
+    uint8_t dutyBits = static_cast<uint8_t>(duty) << 6;
+    uint8_t vol = static_cast<uint8_t>(m_velocity[channel] * 15.0f);
+    m_mmc5->Write(pulseChannel == 0 ? 0x5000 : 0x5004, dutyBits | 0x30 | vol);
   }
 }
 
@@ -521,8 +585,9 @@ uint16_t NessyAPU::midiToPeriod(int midiNote, int channel) const {
   double divider = (channel == TRIANGLE) ? 32.0 : 16.0;
   double period = (m_clockRate / (divider * freq)) - 1.0;
 
-  // VRC6 has 12-bit period, base NES has 11-bit
-  double maxPeriod = (channel >= VRC6_PULSE1) ? 4095.0 : 2047.0;
+  // VRC6 has 12-bit period; base NES (incl. MMC5) has 11-bit
+  bool isVrc6 = (channel == VRC6_PULSE1 || channel == VRC6_PULSE2 || channel == VRC6_SAW);
+  double maxPeriod = isVrc6 ? 4095.0 : 2047.0;
   return static_cast<uint16_t>(juce::jlimit(0.0, maxPeriod, period));
 }
 

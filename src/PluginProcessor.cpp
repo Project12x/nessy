@@ -69,6 +69,16 @@ createParameterLayout() {
                         "43.75%", "50%"},
       7));
 
+  // MMC5 Expansion
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID("mmc5Enable", 1), "MMC5 Enable", false));
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID("mmc5Pulse1Duty", 1), "MMC5 Pulse 1 Duty",
+      juce::StringArray{"12.5%", "25%", "50%", "75%"}, 2));
+  layout.add(std::make_unique<juce::AudioParameterChoice>(
+      juce::ParameterID("mmc5Pulse2Duty", 1), "MMC5 Pulse 2 Duty",
+      juce::StringArray{"12.5%", "25%", "50%", "75%"}, 2));
+
   // Macro presets per channel
   juce::StringArray macroPresetNames{
       "None", "Plain", "Vibrato", "Vol Decay",
@@ -334,6 +344,15 @@ void NessyAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
         parameters.getRawParameterValue("vrc6Enable")->load() > 0.5f;
     voiceAllocator->setVRC6Enabled(vrc6Enabled);
     apu->setVRC6Enabled(vrc6Enabled);
+
+    // Sync MMC5 enable state to voice allocator
+    bool mmc5Enabled = parameters.getRawParameterValue("mmc5Enable")->load() > 0.5f;
+    voiceAllocator->setGroupEnabled(nessy::ChipGroup::MMC5, mmc5Enabled);
+    apu->setMmc5Enabled(mmc5Enabled);
+    apu->setMmc5PulseDuty(0, static_cast<NessyAPU::DutyCycle>(
+        static_cast<int>(parameters.getRawParameterValue("mmc5Pulse1Duty")->load())));
+    apu->setMmc5PulseDuty(1, static_cast<NessyAPU::DutyCycle>(
+        static_cast<int>(parameters.getRawParameterValue("mmc5Pulse2Duty")->load())));
 
     // Sync macro presets per channel
     const char* macroIds[] = {
