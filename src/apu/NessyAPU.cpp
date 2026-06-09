@@ -554,7 +554,10 @@ void NessyAPU::fme7Write(uint8_t reg, uint8_t val) {
 
 uint16_t NessyAPU::midiToFME7Period(int midiNote) const {
   double freq = FREQ_A4 * std::pow(2.0, (midiNote - MIDI_A4) / 12.0);
-  double period = 1789772.0 / (32.0 * freq); // AY PSG, no -1; fixed chip clock
+  // AY PSG period, no -1. The numerator is 1789772 (the FME7's hardcoded PSG
+  // DEFAULT_CLOCK), NOT NTSC 1789772.7 — they must match the chip's fixed clock,
+  // so do not "correct" this to NES_CPU_CLOCK_NTSC or the 5B detunes.
+  double period = 1789772.0 / (32.0 * freq);
   return static_cast<uint16_t>(juce::jlimit(1.0, 4095.0, period));
 }
 
