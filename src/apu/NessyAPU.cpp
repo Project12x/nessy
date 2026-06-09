@@ -698,7 +698,7 @@ void NessyAPU::applyMacroDuty(int channel, uint8_t duty) {
   case PULSE2:     writeRegister(0x4004, (static_cast<uint8_t>(duty & 3) << 6) | 0x30 | 15); break;
   case MMC5_PULSE1: m_mmc5->Write(0x5000, (static_cast<uint8_t>(duty & 3) << 6) | 0x30 | 15); break;
   case MMC5_PULSE2: m_mmc5->Write(0x5004, (static_cast<uint8_t>(duty & 3) << 6) | 0x30 | 15); break;
-  default: break; // 5B/VRC6 saw/triangle/noise: no duty
+  default: break; // No duty here: 5B/triangle/noise/VRC6-saw have none; VRC6 pulse duty is not macro-driven yet.
   }
 }
 
@@ -709,6 +709,13 @@ void NessyAPU::setMacroPreset(int channel, int presetId) {
 }
 
 uint16_t NessyAPU::midiToPeriod(int midiNote, int channel) const {
+  // 5B/FME7 channels use the AY PSG period mapping, not the 2A03/VRC6 formula.
+  // This keeps MacroEngine portamento (which calls midiToPeriod generically) on
+  // the correct base period for these channels; noteOn/writePitchOffset already
+  // call midiToFME7Period directly.
+  if (channel >= FME7_A)
+    return midiToFME7Period(midiNote);
+
   double freq = FREQ_A4 * std::pow(2.0, (midiNote - MIDI_A4) / 12.0);
 
   // VRC6 uses same period formula as base NES
