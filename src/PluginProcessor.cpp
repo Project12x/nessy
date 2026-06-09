@@ -89,11 +89,13 @@ createParameterLayout() {
       "Arp Maj", "Arp Min", "Duty Sweep", "Stab"};
   const char* macroIds[] = {
       "macroPulse1", "macroPulse2", "macroTri", "macroNoise",
-      "macroVrc6P1", "macroVrc6P2", "macroVrc6Saw"};
+      "macroVrc6P1", "macroVrc6P2", "macroVrc6Saw",
+      "macroMmc5P1", "macroMmc5P2", "macroFme7A", "macroFme7B", "macroFme7C"};
   const char* macroNames[] = {
       "Pulse 1 Macro", "Pulse 2 Macro", "Triangle Macro", "Noise Macro",
-      "VRC6 P1 Macro", "VRC6 P2 Macro", "VRC6 Saw Macro"};
-  for (int i = 0; i < 7; ++i)
+      "VRC6 P1 Macro", "VRC6 P2 Macro", "VRC6 Saw Macro",
+      "MMC5 P1 Macro", "MMC5 P2 Macro", "5B A Macro", "5B B Macro", "5B C Macro"};
+  for (int i = 0; i < 12; ++i)
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID(macroIds[i], 1), macroNames[i], macroPresetNames, 0));
 
@@ -366,11 +368,14 @@ void NessyAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     // Sync macro presets per channel
     const char* macroIds[] = {
         "macroPulse1", "macroPulse2", "macroTri", "macroNoise",
-        "macroVrc6P1", "macroVrc6P2", "macroVrc6Saw"};
+        "macroVrc6P1", "macroVrc6P2", "macroVrc6Saw",
+        "macroMmc5P1", "macroMmc5P2", "macroFme7A", "macroFme7B", "macroFme7C"};
     const int macroChannels[] = {
         NessyAPU::PULSE1, NessyAPU::PULSE2, NessyAPU::TRIANGLE, NessyAPU::NOISE,
-        NessyAPU::VRC6_PULSE1, NessyAPU::VRC6_PULSE2, NessyAPU::VRC6_SAW};
-    for (int i = 0; i < 7; ++i)
+        NessyAPU::VRC6_PULSE1, NessyAPU::VRC6_PULSE2, NessyAPU::VRC6_SAW,
+        NessyAPU::MMC5_PULSE1, NessyAPU::MMC5_PULSE2,
+        NessyAPU::FME7_A, NessyAPU::FME7_B, NessyAPU::FME7_C};
+    for (int i = 0; i < 12; ++i)
       apu->setMacroPreset(macroChannels[i],
           static_cast<int>(parameters.getRawParameterValue(macroIds[i])->load()));
 

@@ -615,6 +615,21 @@ void NessyAPU::writeNoteRegisters(int channel, int midiNote) {
     m_vrc6->Write(0xB001, period & 0xFF);
     m_vrc6->Write(0xB002, 0x80 | ((period >> 8) & 0x0F));
     break;
+  case MMC5_PULSE1:
+    m_mmc5->Write(0x5002, period & 0xFF);
+    m_mmc5->Write(0x5003, (period >> 8) & 0x07);
+    break;
+  case MMC5_PULSE2:
+    m_mmc5->Write(0x5006, period & 0xFF);
+    m_mmc5->Write(0x5007, (period >> 8) & 0x07);
+    break;
+  case FME7_A: case FME7_B: case FME7_C: {
+    int idx = channel - FME7_A;
+    uint16_t p = midiToFME7Period(midiNote); // 5B uses its own period mapping
+    fme7Write(idx * 2,     p & 0xFF);
+    fme7Write(idx * 2 + 1, (p >> 8) & 0x0F);
+    break;
+  }
   default: break;
   }
 }
@@ -622,9 +637,13 @@ void NessyAPU::writeNoteRegisters(int channel, int midiNote) {
 // Add a signed period offset (fine pitch macro)
 void NessyAPU::writePitchOffset(int channel, int periodOffset) {
   if (m_currentNote[channel] < 0) return;
-  uint16_t base   = midiToPeriod(m_currentNote[channel], channel);
+  // Chip-aware clamp: 5B and VRC6 have 12-bit period; 2A03/MMC5 have 11-bit.
+  bool isFme7 = (channel >= FME7_A);
+  int maxP = (channel == VRC6_PULSE1 || channel == VRC6_PULSE2 || channel == VRC6_SAW || isFme7) ? 0xFFF : 0x7FF;
+  uint16_t base = isFme7 ? midiToFME7Period(m_currentNote[channel])
+                         : midiToPeriod(m_currentNote[channel], channel);
   int adjusted    = static_cast<int>(base) + periodOffset;
-  adjusted        = juce::jlimit(0, 0x7FF, adjusted);
+  adjusted        = juce::jlimit(0, maxP, adjusted);
   uint16_t period = static_cast<uint16_t>(adjusted);
 
   switch (channel) {
@@ -634,6 +653,13 @@ void NessyAPU::writePitchOffset(int channel, int periodOffset) {
   case VRC6_PULSE1: m_vrc6->Write(0x9001, period & 0xFF); m_vrc6->Write(0x9002, 0x80 | ((period >> 8) & 0x0F)); break;
   case VRC6_PULSE2: m_vrc6->Write(0xA001, period & 0xFF); m_vrc6->Write(0xA002, 0x80 | ((period >> 8) & 0x0F)); break;
   case VRC6_SAW:    m_vrc6->Write(0xB001, period & 0xFF); m_vrc6->Write(0xB002, 0x80 | ((period >> 8) & 0x0F)); break;
+  case MMC5_PULSE1: m_mmc5->Write(0x5002, period & 0xFF); m_mmc5->Write(0x5003, (period >> 8) & 0x07); break;
+  case MMC5_PULSE2: m_mmc5->Write(0x5006, period & 0xFF); m_mmc5->Write(0x5007, (period >> 8) & 0x07); break;
+  case FME7_A: case FME7_B: case FME7_C: {
+    int idx = channel - FME7_A;
+    fme7Write(idx * 2, period & 0xFF); fme7Write(idx * 2 + 1, (period >> 8) & 0x0F);
+    break;
+  }
   default: break;
   }
 }
@@ -641,6 +667,39 @@ void NessyAPU::writePitchOffset(int channel, int periodOffset) {
 // Return the current pulse duty register value (D7:D6 of $4000/$4004)
 uint8_t NessyAPU::getPulseDutyReg(int pulseIndex) const {
   return static_cast<uint8_t>(m_pulseDuty[pulseIndex]) & 0x03;
+}
+
+// Channel-aware macro volume application — routes per chip.
+// Behaviour-identical to the old MacroEngine inline switch for PULSE1/PULSE2/NOISE;
+// VRC6 and MMC5/5B cases are additive (new).
+void NessyAPU::applyMacroVolume(int channel, uint8_t volume) {
+  if (volume > 15) volume = 15;
+  switch (channel) {
+  case PULSE1: writeRegister(0x4000, (getPulseDutyReg(0) << 6) | 0x30 | volume); break;
+  case PULSE2: writeRegister(0x4004, (getPulseDutyReg(1) << 6) | 0x30 | volume); break;
+  case NOISE:  writeRegister(0x400C, 0x30 | volume); break;
+  case VRC6_PULSE1: m_vrc6->Write(0x9000, (static_cast<uint8_t>(m_vrc6PulseDuty[0]) << 4) | volume); break;
+  case VRC6_PULSE2: m_vrc6->Write(0xA000, (static_cast<uint8_t>(m_vrc6PulseDuty[1]) << 4) | volume); break;
+  case VRC6_SAW:    m_vrc6->Write(0xB000, static_cast<uint8_t>((volume / 15.0f) * 42.0f) & 0x3F); break;
+  case MMC5_PULSE1: m_mmc5->Write(0x5000, (static_cast<uint8_t>(m_mmc5PulseDuty[0]) << 6) | 0x30 | volume); break;
+  case MMC5_PULSE2: m_mmc5->Write(0x5004, (static_cast<uint8_t>(m_mmc5PulseDuty[1]) << 6) | 0x30 | volume); break;
+  case FME7_A: fme7Write(0x08, volume & 0x0F); break;
+  case FME7_B: fme7Write(0x09, volume & 0x0F); break;
+  case FME7_C: fme7Write(0x0A, volume & 0x0F); break;
+  default: break; // Triangle/DMC: no volume register
+  }
+}
+
+// Channel-aware macro duty application — routes per chip.
+// Behaviour-identical to old MacroEngine inline switch for PULSE1/PULSE2.
+void NessyAPU::applyMacroDuty(int channel, uint8_t duty) {
+  switch (channel) {
+  case PULSE1:     writeRegister(0x4000, (static_cast<uint8_t>(duty & 3) << 6) | 0x30 | 15); break;
+  case PULSE2:     writeRegister(0x4004, (static_cast<uint8_t>(duty & 3) << 6) | 0x30 | 15); break;
+  case MMC5_PULSE1: m_mmc5->Write(0x5000, (static_cast<uint8_t>(duty & 3) << 6) | 0x30 | 15); break;
+  case MMC5_PULSE2: m_mmc5->Write(0x5004, (static_cast<uint8_t>(duty & 3) << 6) | 0x30 | 15); break;
+  default: break; // 5B/VRC6 saw/triangle/noise: no duty
+  }
 }
 
 // Set macro preset for a channel

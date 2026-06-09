@@ -196,16 +196,7 @@ void MacroEngine::applyMacroTick(int channel) {
     // Scale by velocity (keep it authentic: velocity maps to initial volume)
     uint8_t vol = static_cast<uint8_t>(
         std::round(v * ch.velocity));
-    if (vol > 15) vol = 15;
-
-    // Write volume register per channel type
-    switch (channel) {
-    case 0: /* PULSE1 */ m_apu->writeRegister(0x4000, (m_apu->getPulseDutyReg(0) << 6) | 0x30 | vol); break;
-    case 1: /* PULSE2 */ m_apu->writeRegister(0x4004, (m_apu->getPulseDutyReg(1) << 6) | 0x30 | vol); break;
-    case 3: /* NOISE  */ m_apu->writeRegister(0x400C, 0x30 | vol); break;
-    // Triangle doesn't have volume register; VRC6 channels handled via arpeggio/duty only
-    default: break;
-    }
+    m_apu->applyMacroVolume(channel, vol);
   }
 
   // --- Arpeggio (skip when standalone arpeggiator is active) ---
@@ -230,10 +221,6 @@ void MacroEngine::applyMacroTick(int channel) {
   if (!m.duty.empty()) {
     int d = advance(ch.dutyPos, m.duty, ch.released);
     if (d < 0) d = 0;
-    switch (channel) {
-    case 0: /* PULSE1 */ m_apu->writeRegister(0x4000, (static_cast<uint8_t>(d) << 6) | 0x30 | 15); break;
-    case 1: /* PULSE2 */ m_apu->writeRegister(0x4004, (static_cast<uint8_t>(d) << 6) | 0x30 | 15); break;
-    default: break;
-    }
+    m_apu->applyMacroDuty(channel, static_cast<uint8_t>(d));
   }
 }

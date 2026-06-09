@@ -108,6 +108,10 @@ public:
   void writePitchOffset(int channel, int periodOffset);
   uint8_t getPulseDutyReg(int pulseIndex) const;
 
+  // Channel-aware macro application (routes to the right chip). Used by MacroEngine.
+  void applyMacroVolume(int channel, uint8_t volume); // 0-15
+  void applyMacroDuty(int channel, uint8_t duty);     // pulse-like channels only
+
   // Hardware Sweep control
   void setManualSweepConfig(int pulseIndex, bool enable, bool up, int rate, int shift);
 
