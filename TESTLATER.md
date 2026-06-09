@@ -74,6 +74,10 @@ Pre-fix build backed up at `releases/2026-06-08_1032/`.
   near full volume / fixed duty instead of fading or sweeping.
   **Likely fix:** make the per-block pulse-duty sync idempotent (only call
   `setPulseDuty` when the duty param actually changes), mirroring `51db06a`.
+  **Same issue now affects MMC5 pulses:** `processBlock` likewise calls
+  `setMmc5PulseDuty(0/1)` every block, re-writing `$5000`/`$5004` and stomping
+  MMC5 pulse volume/duty macros. The same idempotent-setter fix should cover
+  both 2A03 and MMC5 pulses.
 
 ### Macro sequencer (per channel)
 - [ ] **Vibrato** (pitch macro) on Pulse 1/2 — held note wobbles continuously
