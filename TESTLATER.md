@@ -1,11 +1,12 @@
 # TESTLATER — Manual Test Backlog
 
-Nessy has **no automated tests**; every behavior is verified by hand. This doc
-is the running list of what a human still needs to check. Tick a box when
-verified; annotate `FAIL —` inline if it breaks.
+Nessy has 24 automated Catch2 tests (CPU, expansion chips, NSF engine, voice
+allocator), but **audio and UI behaviour can't be auto-verified** — those are
+checked by hand. This doc is the running list of what a human still needs to
+check. Tick a box when verified; annotate `FAIL —` inline if it breaks.
 
-**Last updated:** 2026-06-08 (NSF player Phase B complete + final-review fixes).
-Prior: 2026-06-05 (`1ad865d` arp/sweep/portamento, `51db06a` idempotent-setter fix).
+**Last updated:** 2026-06-09 (Phase C.1 channel/voice infra refactor).
+Prior: 2026-06-08 (NSF player Phase B + final-review fixes); 2026-06-05 (arp/sweep/portamento).
 
 **How to test:** launch the Standalone
 (`build\Nessy_artefacts\Release\Standalone\Nessy.exe`) or load the VST3 in a DAW.
@@ -29,11 +30,11 @@ The unit suite proves allocation is behavior-identical, but sound and UI cannot 
 
 
 
-### NSF player — Phase-B review fixes (built, tests green, **uncommitted**)
+### NSF player — Phase-B review fixes (committed `a84919c`, pending by-ear)
 
 Five fixes from the final Phase-B review. They compile clean and pass CTest
-(15/15), but touch audio/UI behaviour so they need a by-hand pass. Branch
-`feat/nsf-multichip`; files `PluginProcessor.h/.cpp`, `NsfPlayerWindow.cpp`.
+(24/24), but touch audio/UI behaviour so they need a by-hand pass. Files
+`PluginProcessor.h/.cpp`, `NsfPlayerWindow.cpp`.
 Pre-fix build backed up at `releases/2026-06-08_1032/`.
 
 - [ ] **Stuck-note fix — by ear (this one changes audible behaviour).** Hold synth
