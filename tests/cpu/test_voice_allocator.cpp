@@ -1,5 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include "ChannelRegistry.h"
+#include "VoiceAllocator.h"
+#include "MockVoiceSink.h"
+#include <array>
 
 using namespace nessy;
 
@@ -37,4 +40,118 @@ TEST_CASE("channel registry has the expected current layout", "[voicealloc][regi
   // is written straight into NessyAPU note calls in Task 3).
   for (int i = 0; i < static_cast<int>(kChannels.size()); ++i)
     REQUIRE(kChannels[i].id == i);
+}
+
+// A synthetic N>8 registry: 10 melodic "lead" squares (ids 0..9) in one test
+// group, to prove the allocator generalizes past the legacy 8 channels.
+static constexpr std::array<ChannelDesc, 10> kTenLeads = {{
+    {0, ChipGroup::MMC5, ChannelKind::Square, ChannelRole::Melodic, SplitTier::Lead},
+    {1, ChipGroup::MMC5, ChannelKind::Square, ChannelRole::Melodic, SplitTier::Lead},
+    {2, ChipGroup::MMC5, ChannelKind::Square, ChannelRole::Melodic, SplitTier::Lead},
+    {3, ChipGroup::MMC5, ChannelKind::Square, ChannelRole::Melodic, SplitTier::Lead},
+    {4, ChipGroup::MMC5, ChannelKind::Square, ChannelRole::Melodic, SplitTier::Lead},
+    {5, ChipGroup::MMC5, ChannelKind::Square, ChannelRole::Melodic, SplitTier::Lead},
+    {6, ChipGroup::MMC5, ChannelKind::Square, ChannelRole::Melodic, SplitTier::Lead},
+    {7, ChipGroup::MMC5, ChannelKind::Square, ChannelRole::Melodic, SplitTier::Lead},
+    {8, ChipGroup::MMC5, ChannelKind::Square, ChannelRole::Melodic, SplitTier::Lead},
+    {9, ChipGroup::MMC5, ChannelKind::Square, ChannelRole::Melodic, SplitTier::Lead},
+}};
+
+// Build an allocator on the production registry, Core2A03 only (VRC6 off).
+static VoiceAllocator makeCoreAllocator(MockVoiceSink& sink) {
+  VoiceAllocator va;
+  va.setChannels(kChannels.data(), kChannels.size());
+  va.setAPU(&sink);
+  va.setVRC6Enabled(false);
+  return va;
+}
+
+TEST_CASE("round-robin fills melodic channels in registry order, then steals oldest",
+          "[voicealloc]") {
+  MockVoiceSink sink;
+  VoiceAllocator va = makeCoreAllocator(sink);
+  va.setMode(VoiceAllocator::Mode::ROUND_ROBIN);
+
+  va.noteOn(0, 60, 1.0f);   // -> id 0 (P1)
+  va.noteOn(0, 62, 1.0f);   // -> id 1 (P2)
+  va.noteOn(0, 64, 1.0f);   // -> id 2 (Tri)
+  REQUIRE(sink.onChannels() == std::vector<int>{0, 1, 2});
+
+  sink.clear();
+  va.noteOn(0, 65, 1.0f);   // all full -> steal oldest (id 0)
+  REQUIRE(sink.offs == std::vector<int>{0});
+  REQUIRE(sink.onChannels() == std::vector<int>{0});
+}
+
+TEST_CASE("VRC6 group enable extends the round-robin pool to 6", "[voicealloc]") {
+  MockVoiceSink sink;
+  VoiceAllocator va = makeCoreAllocator(sink);
+  va.setVRC6Enabled(true);
+  va.setMode(VoiceAllocator::Mode::ROUND_ROBIN);
+
+  for (int n = 60; n < 66; ++n) va.noteOn(0, n, 1.0f);  // 6 distinct notes
+  REQUIRE(sink.onChannels() == std::vector<int>{0, 1, 2, 5, 6, 7});
+}
+
+TEST_CASE("pitch-split routes low notes to bass tier, high notes to lead tier",
+          "[voicealloc]") {
+  MockVoiceSink sink;
+  VoiceAllocator va = makeCoreAllocator(sink);
+  va.setVRC6Enabled(true);
+  va.setMode(VoiceAllocator::Mode::PITCH_SPLIT);
+  va.setSplitPoint(60);
+
+  va.noteOn(0, 48, 1.0f);   // low -> bass: Tri (id 2)
+  va.noteOn(0, 50, 1.0f);   // low -> bass: VRC6 Saw (id 7)
+  va.noteOn(0, 72, 1.0f);   // high -> lead: P1 (id 0)
+  va.noteOn(0, 74, 1.0f);   // high -> lead: P2 (id 1)
+  REQUIRE(sink.lastOnChannelFor(48) == 2);
+  REQUIRE(sink.lastOnChannelFor(50) == 7);
+  REQUIRE(sink.lastOnChannelFor(72) == 0);
+  REQUIRE(sink.lastOnChannelFor(74) == 1);
+}
+
+TEST_CASE("unison triggers every enabled melodic channel; respects per-channel disable",
+          "[voicealloc]") {
+  MockVoiceSink sink;
+  VoiceAllocator va = makeCoreAllocator(sink);
+  va.setMode(VoiceAllocator::Mode::UNISON);
+
+  va.noteOn(0, 60, 1.0f);   // P1,P2,Tri
+  REQUIRE(sink.onChannels() == std::vector<int>{0, 1, 2});
+
+  sink.clear();
+  sink.disabled.insert(1);  // disable P2
+  va.noteOff(0, 60);
+  va.noteOn(0, 67, 1.0f);   // P1,Tri only
+  REQUIRE(sink.onChannels() == std::vector<int>{0, 2});
+}
+
+TEST_CASE("noise and DMC are never melodically allocated", "[voicealloc]") {
+  MockVoiceSink sink;
+  VoiceAllocator va = makeCoreAllocator(sink);
+  va.setMode(VoiceAllocator::Mode::ROUND_ROBIN);
+
+  for (int n = 60; n < 70; ++n) va.noteOn(0, n, 1.0f);  // overflow the pool
+  for (int ch : sink.onChannels()) {
+    REQUIRE(ch != 3);   // Noise
+    REQUIRE(ch != 4);   // DMC
+  }
+}
+
+TEST_CASE("allocator generalizes past 8 channels (N=10)", "[voicealloc]") {
+  MockVoiceSink sink;
+  VoiceAllocator va;
+  va.setChannels(kTenLeads.data(), kTenLeads.size());
+  va.setAPU(&sink);
+  va.setGroupEnabled(ChipGroup::MMC5, true);
+  va.setMode(VoiceAllocator::Mode::ROUND_ROBIN);
+
+  for (int n = 60; n < 70; ++n) va.noteOn(0, n, 1.0f);  // fill all 10
+  REQUIRE(sink.onChannels() == std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+  sink.clear();
+  va.noteOn(0, 70, 1.0f);   // 11th note -> steal oldest (id 0)
+  REQUIRE(sink.offs == std::vector<int>{0});
+  REQUIRE(sink.onChannels() == std::vector<int>{0});
 }

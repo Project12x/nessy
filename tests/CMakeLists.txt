@@ -19,6 +19,7 @@ target_sources(nessy_tests PRIVATE
     cpu/test_nsf_engine.cpp
     cpu/test_nsf_bridge.cpp
     cpu/test_voice_allocator.cpp
+    ${CMAKE_SOURCE_DIR}/src/apu/VoiceAllocator.cpp
     ${CMAKE_SOURCE_DIR}/src/nsf/NsfEngine.cpp
     ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/player/nsf/nsf.cpp
     ${CMAKE_SOURCE_DIR}/src/apu/nsfplay/xgm/devices/Sound/nes_apu.cpp

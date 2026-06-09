@@ -1,55 +1,53 @@
 #pragma once
 
-// VoiceAllocator: Routes MIDI notes to NES APU channels including expansion
-// chips GPL-3.0
+// VoiceAllocator: routes MIDI notes to NES channels over a data-driven channel
+// registry (see ChannelRegistry.h). N-channel; per-chip-group enable; modes
+// Round-Robin / Pitch-Split / Unison. Drives sound through IVoiceSink so it is
+// decoupled from NessyAPU (and unit-testable). GPL-3.0.
 
+#include "ChannelRegistry.h"
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <vector>
 
-class NessyAPU;
+namespace nessy { class IVoiceSink; }
 
 class VoiceAllocator {
 public:
-  // Allocation modes
-  enum class Mode {
-    ROUND_ROBIN, // Cycle through channels in order
-    PITCH_SPLIT, // Low notes → Triangle/Saw, High notes → Pulses
-    UNISON       // Stack multiple channels on same note (fatter sound)
-  };
+  enum class Mode { ROUND_ROBIN, PITCH_SPLIT, UNISON };
 
   VoiceAllocator();
 
-  void setAPU(NessyAPU *apu) { m_apu = apu; }
+  // The active channel set (defaults to the production registry). Resets voices.
+  void setChannels(const nessy::ChannelDesc *channels, std::size_t count);
+
+  void setAPU(nessy::IVoiceSink *apu) { m_apu = apu; }
   void setMode(Mode mode) { m_mode = mode; }
   Mode getMode() const { return m_mode; }
 
-  // VRC6 enable state (extends both modes to 6 voices)
-  void setVRC6Enabled(bool enabled) { m_vrc6Enabled = enabled; }
-  bool isVRC6Enabled() const { return m_vrc6Enabled; }
+  // Per-chip-group enable. Core2A03 is always enabled.
+  void setGroupEnabled(nessy::ChipGroup group, bool enabled);
+  bool isGroupEnabled(nessy::ChipGroup group) const;
 
-  // Pitch-split configuration
+  // Back-compat shim used by PluginProcessor: VRC6 group toggle.
+  void setVRC6Enabled(bool enabled) { setGroupEnabled(nessy::ChipGroup::VRC6, enabled); }
+  bool isVRC6Enabled() const { return isGroupEnabled(nessy::ChipGroup::VRC6); }
+
   void setSplitPoint(int midiNote) { m_splitPoint = midiNote; }
   int getSplitPoint() const { return m_splitPoint; }
 
-  // Channel priority order (indices into channel arrays)
-  void setChannelOrder(const std::array<int, 6> &order) {
-    m_channelOrder = order;
-  }
-  const std::array<int, 6> &getChannelOrder() const { return m_channelOrder; }
-
-  // Handle MIDI events
   void noteOn(int midiChannel, int noteNumber, float velocity);
   void noteOff(int midiChannel, int noteNumber);
   void allNotesOff();
 
-  // Arpeggiator dispatch (called at 60Hz by arp callback)
   void arpNoteOn(int midiNote, float velocity);
   void arpNoteOff();
 
-  // Get which NES channel is playing a given note (-1 if none)
+  // NES channel id currently holding noteNumber, or -1.
   int getChannelForNote(int noteNumber) const;
 
-  // Channel indices for UI reference
+  // Channel id constants for UI reference (unchanged values).
   static constexpr int PULSE1 = 0;
   static constexpr int PULSE2 = 1;
   static constexpr int TRIANGLE = 2;
@@ -65,29 +63,24 @@ private:
     uint32_t timestamp = 0;
   };
 
-  // Channel counts
-  static constexpr int NUM_BASE_MELODIC = 3; // Pulse1, Pulse2, Triangle
-  static constexpr int NUM_VRC6_MELODIC = 3; // VRC6_P1, VRC6_P2, VRC6_SAW
-  static constexpr int NUM_TOTAL_VOICES = 8; // All channels including Noise/DMC
+  // Indices below are POSITIONS into m_channels / m_voices, not channel ids.
+  bool positionActive(std::size_t pos) const;             // melodic & group enabled
+  int findFreePosition() const;                           // first active free
+  int findOldestPosition() const;                         // active, lowest timestamp
+  int findPositionForPitch(int noteNumber) const;         // tier-partitioned split
+  int findFreeInTier(nessy::SplitTier tier) const;
+  int findOldestInTier(nessy::SplitTier tier) const;
+  void triggerPosition(int pos, int noteNumber, float velocity);
 
-  int findFreeChannel() const;
-  int findOldestChannel() const;
-  int findChannelForPitch(int noteNumber) const;
-  int midiChannelToNesChannel(int midiChannel) const;
-  int getMaxChannels() const;
-
-  NessyAPU *m_apu = nullptr;
+  nessy::IVoiceSink *m_apu = nullptr;
   Mode m_mode = Mode::ROUND_ROBIN;
-  bool m_vrc6Enabled = false;
-  int m_splitPoint = 60; // C4 - notes below go to Triangle/Saw
+  int m_splitPoint = 60;
 
-  // Channel allocation order (default: P1, P2, Tri, VRC6_P1, VRC6_P2, VRC6_SAW)
-  std::array<int, 6> m_channelOrder = {0, 1, 2, 5, 6, 7};
-
-  std::array<Voice, NUM_TOTAL_VOICES> m_voices;
+  const nessy::ChannelDesc *m_channels = nullptr;
+  std::size_t m_count = 0;
+  std::vector<Voice> m_voices;        // parallel to m_channels
+  std::array<bool, static_cast<std::size_t>(nessy::ChipGroup::Count)> m_groupEnabled{};
   uint32_t m_timestamp = 0;
 
-  // Arp state: which channel is currently playing the arp note
-  int m_arpChannel = -1;
   int m_arpLastNote = -1;
 };

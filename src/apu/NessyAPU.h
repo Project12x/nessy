@@ -3,6 +3,7 @@
 // NessyAPU: NES APU wrapper for VST use with expansion chip support
 // GPL-3.0 - Uses NSFPlay cores from Dn-FamiTracker
 
+#include "IVoiceSink.h"
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -20,7 +21,7 @@ class NessyMemory;
 class MacroEngine;
 template <int quality> class Blip_Synth;
 
-class NessyAPU {
+class NessyAPU : public nessy::IVoiceSink {
 public:
   // Base NES APU channel indices (0-4)
   enum Channel {
@@ -57,12 +58,12 @@ public:
   int process(float *leftOutput, float *rightOutput, int numSamples);
 
   // MIDI note control
-  void noteOn(int channel, int midiNote, float velocity);
-  void noteOff(int channel);
+  void noteOn(int channel, int midiNote, float velocity) override;
+  void noteOff(int channel) override;
 
   // Channel configuration
   void setChannelEnabled(int channel, bool enabled);
-  bool isChannelEnabled(int channel) const {
+  bool isChannelEnabled(int channel) const override {
     if (channel < 0 || channel >= NUM_CHANNELS)
       return false;
     return m_channelEnabled[channel];
