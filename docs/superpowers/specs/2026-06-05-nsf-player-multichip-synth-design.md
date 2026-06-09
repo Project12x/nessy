@@ -122,7 +122,7 @@ Per project policy, all vendored cores are recorded before copying.
 - **Phase B — NSF jukebox.** `NsfFile`/NSFe parser, `BankMapper`, `NesBus`, `NsfPlayer`, `NsfEngine`, `playbackMode` switch, RT-safe file load, NSF-mode UI (cartridge → loader + subsong nav + metadata + auto-populated scope strip). **Ships the requested feature and exercises every chip against real NSFs.**
 - **Phase C — Synth chip expansion.** Wire chips into `NessyAPU` + `VoiceAllocator` (unified pool, per-chip enable groups) + params/macros. **Infra-first sub-phasing** (decided 2026-06-08, see §10a):
   - **C.1 — Channel/voice infra refactor.** Data-driven channel registry + generalize `VoiceAllocator` to N channels; **no new chip audio, no new params, no UI**. Behavior-preserving for today's 2A03+VRC6 set; verified by a new Catch2 `VoiceAllocator` suite + regression assertion.
-  - **C.2 — Easy chips.** MMC5 (2 pulses) + Sunsoft 5B (3 squares) audio in `NessyAPU` + params/macros, allocated through the new pool.
+  - **C.2 — Easy chips.** MMC5 (2 pulses) + Sunsoft 5B (3 squares) audio in `NessyAPU` + params, allocated through the new pool, at **full parity** (MacroEngine + portamento) with the existing channels. See §10b.
   - **C.3 — Wavetable chips.** FDS + Namco 163 (up to 8 ch) audio + wavetable params.
   - **C.4 — FM.** VRC7 + custom-patch model (highest risk; tail).
 - **Phase D — Multi-chip synth UI.** The A+C deck (fixed console + tabbed cartridge bay) + the all-channels mini-scope strip; per-chip param controls.
@@ -138,6 +138,17 @@ Decided via brainstorm (2026-06-08): generalize the voice/channel layer **before
 - **Behavior preservation** — with only the 2A03 + VRC6 groups enabled (today's exact set), allocation is **identical** to current; `NessyAPU` is untouched.
 - **Verification (unit tests + regression)** — a new Catch2 `VoiceAllocator` suite covering allocation order, voice-steal, pitch-split partition, unison stacking, per-group gating, and non-melodic exclusion, plus a regression case asserting the legacy 8-channel set matches today's behavior.
 - **Out of scope for C.1** — no new APVTS params, no new chip audio, no UI change. Rejected alternatives: per-chip allocator modules (over-engineered for a fixed chip set) and growing the enums/arrays with conditionals (a 28-channel tangle that fights the test goal).
+
+### 10b. Phase C.2 design — easy chips (MMC5 + Sunsoft 5B) as MIDI voices
+
+Approved 2026-06-09. The first audible expansion: MMC5 (2 pulses) and Sunsoft 5B (3 square tones) become MIDI-playable through the C.1 pool at **full feature parity** with the existing channels (params + MacroEngine + portamento). `NessyAPU` owns its own chip instances, following the existing VRC6 external-chip pattern (rejected: sharing the NSF engine's chips — a separate PIMPL'd unit with its own CPU/bus).
+
+- **Channels / registry (+5 → 13).** Add rows to `kChannels`: `MMC5_P1`(8), `MMC5_P2`(9), `FME7_A`(10), `FME7_B`(11), `FME7_C`(12) — all `Square`/`Melodic`/`Lead`; groups `MMC5` and `FME7`. Groups default **disabled** (synth unchanged until enabled).
+- **NessyAPU.** Add `m_mmc5` (`NES_MMC5`) + `m_fme7` (`NES_FME7`); `SetClock`/`SetRate`/`Reset`; `Tick` when the group is enabled. Grow the `Channel` enum + per-channel arrays 8 → 13. `noteOn`/`noteOff` branches: MMC5 = 2A03-style (`$5015` enable, `$5000/4` duty+vol, `$5002/3`,`$5006/7` period+len; 2A03 period formula); 5B = PSG (`$C000` latch + `$E000` data; regs `0-5` 12-bit period, mixer `0x07`, vol `0x08-0x0A`; AY period formula, verified vs `NES_FME7`). `process()` `Render()`s each enabled chip and adds linearly (scale tuned to match level). No `out[]` tap / exposed subclass (scopes are Phase D).
+- **Params (APVTS).** `mmc5Enable`, `sunsoft5bEnable` (→ `NessyAPU` + `VoiceAllocator::setGroupEnabled`); `mmc5Pulse1Duty`/`mmc5Pulse2Duty` (4 duties; 5B has none); per-channel macro-preset selectors for the 5 new channels.
+- **Macros + portamento (full parity).** Grow `MacroEngine::NUM_CHANNELS` 8 → 13; extend the channel-aware routing (`writeNoteRegisters` / `writePitchOffset` / volume+duty application) to the MMC5 and 5B register maps. The **duty** macro is a no-op on 5B squares (no duty), as on VRC6 saw/triangle.
+- **Verification.** Automated: extend the registry sanity test for the 5 rows; add an allocator test enabling MMC5+FME7 and asserting allocation spans ids 8-12 over the 13-channel pool (chip cores already smoke-tested non-silent). Manual by-ear (`NessyAPU` is JUCE-coupled, outside the JUCE-free test binary): correct pitches, enables, MMC5 duty, macros+portamento on new channels, balanced mix, 2A03/VRC6 unchanged — tracked in `TESTLATER.md`.
+- **Out of scope.** No new UI/scope strip (Phase D); 5B noise + hardware envelope (3 plain square tones only); VRC7/FDS/N163 (C.3/C.4).
 
 ## 11. Threading / RT-safety
 
@@ -179,5 +190,6 @@ The engine is deterministic, so this is the project's opportunity to start the a
 - **A:** all chips compile + emit sound via direct writes; 6502 passes the test ROM; synth unchanged. 
 - **B:** standard + each-expansion NSF plays correctly from the jukebox UI; subsong nav + metadata + scopes work; RT-safe load verified; manual + automated checks pass.
 - **C.1:** data-driven channel registry + N-channel `VoiceAllocator` land; legacy 2A03+VRC6 allocation is behavior-identical; new Catch2 `VoiceAllocator` suite passes; no new chip audio/params/UI; `NessyAPU` untouched.
+- **C.2:** MMC5 (2 pulses) + Sunsoft 5B (3 squares) MIDI-playable through the pool with per-chip enable, MMC5 duty, and full MacroEngine + portamento parity; registry/allocator tests cover the 13-channel set; the 2A03+VRC6 synth is unchanged; new chips verified non-silent + balanced by ear.
 - **C:** each chip playable via MIDI under all three voice modes with per-chip enable; params/macros functional.
 - **D:** the full deck + scope strip ship; manual UI verification by the user (UI rule).
