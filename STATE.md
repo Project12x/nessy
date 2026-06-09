@@ -2,11 +2,11 @@
 
 ## Current Phase
 
-**Phase C.1 — Channel/Voice Infra (Complete)**
+**Phase C.2 — MMC5 + Sunsoft 5B Synth Voices (Complete)**
 
-`VoiceAllocator` is now data-driven: channel allocation reads a `ChannelRegistry` (`ChannelDesc` rows per chip group) and routes through an `IVoiceSink` interface implemented by `NessyAPU`. Behavior is identical for today's 2A03+VRC6 set. A new Catch2 `VoiceAllocator` suite (9 test cases) covers all allocation modes, voice steal, group-gating, non-melodic exclusion, and an N>8 generalization. Foundation for adding expansion-chip voices (C.2+).
+MMC5 (2 pulses, 4 duty cycles) and Sunsoft 5B / FME7 (3 square tones) are now MIDI-playable synth voices through the unified C.1 voice pool at full feature parity: per-chip enable params, MacroEngine (vibrato/decay/arp/duty-sweep/stab), and portamento. Channel count grew 8 → 13. New chip groups default off. 5B pitch verified correct (A4 = 440 Hz). UI controls are Phase D. `NessyAPU` gained `m_mmc5` and `m_fme7` chip instances plus channel-aware `applyMacroVolume`/`applyMacroDuty` helpers.
 
-Prior completed phases — Phase B NSF Player (user-verified), Phase 8 hardware macros (8 presets), Phase 9 sweep/portamento, and the standalone arpeggiator — remain landed. Remaining work: expansion chips as MIDI-playable synth voices (C.2+) and a multi-chip deck UI (Phase D).
+Prior completed phases — Phase C.1 channel/voice infra, Phase B NSF Player, Phase 8 hardware macros, Phase 9 sweep/portamento, and the standalone arpeggiator — remain landed. Remaining work: multi-chip deck UI (Phase D).
 
 ## Build Status
 
@@ -14,7 +14,7 @@ Prior completed phases — Phase B NSF Player (user-verified), Phase 8 hardware 
 |---|---|
 | Standalone (`.exe`) | ✅ Builds & runs |
 | VST3 (`.vst3`) | ✅ Builds |
-| Tests (`nessy_tests`) | ✅ Catch2/CTest (24 tests); km6502 passes the Klaus Dormann functional test; MMC5/FDS/N163/VRC7/5B + DMC render non-silent; NsfEngine parses/inits/renders a synthetic NSF; NSF→processor bridge verified; VoiceAllocator suite (round-robin / pitch-split / unison / steal / group-gating / N>8) |
+| Tests (`nessy_tests`) | ✅ Catch2/CTest (26 tests); km6502 passes the Klaus Dormann functional test; MMC5/FDS/N163/VRC7/5B + DMC render non-silent; NsfEngine parses/inits/renders a synthetic NSF; NSF→processor bridge verified; VoiceAllocator suite (round-robin / pitch-split / unison / steal / group-gating / N>8 / MMC5-group allocation / 5B-group allocation) |
 
 **Build command:**
 ```
@@ -34,6 +34,11 @@ cmake --build build --config Release --target Nessy_Standalone
 | VRC6 Pulse 1 | ✅ Working | 8-level duty cycle |
 | VRC6 Pulse 2 | ✅ Working | 8-level duty cycle |
 | VRC6 Saw | ✅ Working | Accumulator rate = volume |
+| MMC5 Pulse 1 | ✅ Working | 2A03-style square; 4 duty cycles; 11-bit period; volume/duty/pitch macros + portamento |
+| MMC5 Pulse 2 | ✅ Working | 2A03-style square; 4 duty cycles; 11-bit period; volume/duty/pitch macros + portamento |
+| 5B Square A | ✅ Working | AY PSG tone; 12-bit period; volume/pitch macros + portamento; pitch verified A4 = 440 Hz |
+| 5B Square B | ✅ Working | AY PSG tone; 12-bit period; volume/pitch macros + portamento |
+| 5B Square C | ✅ Working | AY PSG tone; 12-bit period; volume/pitch macros + portamento |
 
 ## Voice Allocation
 
@@ -63,7 +68,7 @@ cmake --build build --config Release --target Nessy_Standalone
 
 | Class | File | Role |
 |---|---|---|
-| `NessyAPU` | `src/apu/NessyAPU.cpp` | Wraps NSFPlay cores; note-on/off, mixing, visualizer; implements `IVoiceSink` |
+| `NessyAPU` | `src/apu/NessyAPU.cpp` | Wraps NSFPlay cores (incl. `m_mmc5` MMC5 + `m_fme7` Sunsoft 5B); note-on/off, mixing, visualizer; implements `IVoiceSink`; channel-aware `applyMacroVolume`/`applyMacroDuty` helpers |
 | `NessyMemory` | `src/apu/NessyMemory.h` | Virtual NES address space ($8000–$FFFF) for DMC samples |
 | `ChannelRegistry` | `src/apu/ChannelRegistry.h` | `constexpr` table of `ChannelDesc` rows (chip group, kind, role, split tier); single source of truth for the channel set |
 | `IVoiceSink` | `src/apu/IVoiceSink.h` | 3-method abstract boundary (`noteOn`, `noteOff`, `isChannelEnabled`) decoupling `VoiceAllocator` from `NessyAPU` |

@@ -1,12 +1,12 @@
 # TESTLATER — Manual Test Backlog
 
-Nessy has 24 automated Catch2 tests (CPU, expansion chips, NSF engine, voice
+Nessy has 26 automated Catch2 tests (CPU, expansion chips, NSF engine, voice
 allocator), but **audio and UI behaviour can't be auto-verified** — those are
 checked by hand. This doc is the running list of what a human still needs to
 check. Tick a box when verified; annotate `FAIL —` inline if it breaks.
 
-**Last updated:** 2026-06-09 (Phase C.1 channel/voice infra refactor).
-Prior: 2026-06-08 (NSF player Phase B + final-review fixes); 2026-06-05 (arp/sweep/portamento).
+**Last updated:** 2026-06-09 (Phase C.2 MMC5 + Sunsoft 5B synth voices).
+Prior: 2026-06-09 (Phase C.1 channel/voice infra refactor); 2026-06-08 (NSF player Phase B + final-review fixes); 2026-06-05 (arp/sweep/portamento).
 
 **How to test:** launch the Standalone
 (`build\Nessy_artefacts\Release\Standalone\Nessy.exe`) or load the VST3 in a DAW.
@@ -21,6 +21,19 @@ UI items, *interact* (click, right-click, double-click, drag, resize).
 ---
 
 ## P0 — Recent changes, unverified
+
+### Phase C.2 — MMC5 + Sunsoft 5B synth voices (built, 26/26 tests green)
+
+New chips default off. Enable via the host's generic parameter view (`mmc5Enable`, `sunsoft5bEnable`). UI controls are Phase D.
+
+- [ ] **MMC5 — 2 pulses audible.** Enable MMC5, play a chromatic run on each of the 2 MMC5 channels. Confirm both produce a clear square-wave tone. Cycle through all 4 duty settings (`mmc5Pulse1Duty`, `mmc5Pulse2Duty`) and confirm the timbre changes audibly (12.5% → thin, 25% → slightly fuller, 50% → hollow, 75% → same as 25% by hardware symmetry).
+- [ ] **5B — 3 squares at correct pitch.** Enable `sunsoft5bEnable`. Play A4 (MIDI 69) on each of the 3 5B channels (A, B, C) and confirm by ear / tuner analyzer that the pitch is ~440 Hz. (Empirically expected to pass per code review — the `NES_FME7` fixed-clock behaviour is fully compensated — but confirm by ear.) Confirm all 3 channels sound simultaneously when 3 notes are held.
+- [ ] **Macros on MMC5 channels.** Set `macroMmc5P1` / `macroMmc5P2` to each of: Vibrato (pitch wobbles on a held note), Vol Decay (fades from full to zero), Duty Sweep (duty cycles through values — audible timbre change over time), Stab (short attack burst). Confirm each behaves like the equivalent 2A03 Pulse preset.
+- [ ] **Macros on 5B channels.** Set `macroFme7A/B/C` to: Vibrato (pitch wobble), Vol Decay (fade), Stab. Note that Duty Sweep is a no-op on 5B (no duty register) — confirm it does not crash or produce artifacts.
+- [ ] **Portamento on MMC5 and 5B.** Enable portamento and play two successive notes on an MMC5 channel and on a 5B channel. Confirm pitch glides between them (same caveat as existing channels: glide works most reliably in Unison mode).
+- [ ] **Mix levels vs 2A03/VRC6.** Enable MMC5 and 5B alongside 2A03. Play the same note across chip groups and compare loudness. The `/65536` MMC5 and `/8000` 5B divisors are starting values — tune if one group sounds significantly louder or quieter. Note actual observed balance here for future calibration.
+- [ ] **2A03 + VRC6 channels unchanged.** With only the base channels enabled (MMC5 and 5B off), confirm round-robin / pitch-split / unison behave identically to pre-C.2. This is a regression check only.
+- [ ] **Enable toggles.** Flip `mmc5Enable` and `sunsoft5bEnable` on/off via the host parameter view while notes are playing. Confirm: toggling off silences the group immediately; toggling back on resumes normal voice allocation; no stuck notes.
 
 ### Phase C.1 — Channel/voice infra refactor (built, 24/24 tests green)
 
