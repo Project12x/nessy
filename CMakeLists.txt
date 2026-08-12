@@ -22,9 +22,21 @@ CPMAddPackage(
 # must NOT link the proprietary ghostmoon. Folder is still named ghostmoongpl.
 set(GHOSTMOON_OSS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../ghostmoongpl"
     CACHE PATH "Path to the ghostmoon-oss repository")
+if(NOT EXISTS "${GHOSTMOON_OSS_DIR}/CMakeLists.txt")
+    message(FATAL_ERROR
+        "ghostmoon-oss was not found at '${GHOSTMOON_OSS_DIR}'. "
+        "Set GHOSTMOON_OSS_DIR to the sibling ghostmoon-oss checkout.")
+endif()
 add_subdirectory(${GHOSTMOON_OSS_DIR} ghostmoon_oss_build)
 
 # Nessy VST Plugin
+set(NESSY_PLUGIN_FORMATS VST3 Standalone)
+
+if(APPLE)
+    list(APPEND NESSY_PLUGIN_FORMATS AU)
+    find_package(Iconv REQUIRED)
+endif()
+
 juce_add_plugin(Nessy
     COMPANY_NAME "AntigravityLabs"
     IS_SYNTH TRUE
@@ -32,7 +44,7 @@ juce_add_plugin(Nessy
     NEEDS_MIDI_OUTPUT FALSE
     PLUGIN_MANUFACTURER_CODE Agra
     PLUGIN_CODE Nesy
-    FORMATS VST3 Standalone
+    FORMATS ${NESSY_PLUGIN_FORMATS}
     PRODUCT_NAME "Nessy"
     COPY_PLUGIN_AFTER_BUILD TRUE
 )
